@@ -1,0 +1,12 @@
+apiVersion: hossted.com/v1
+kind: Hosstedproject
+metadata:
+  labels:
+    app.kubernetes.io/name: hosstedproject
+    app.kubernetes.io/instance: hosstedproject-sample
+    app.kubernetes.io/part-of: new
+    app.kuberentes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: new
+  name: hosstedproject-sample
+spec:
+  # TODO(user): Add fields here
