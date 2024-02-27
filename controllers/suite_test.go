@@ -30,7 +30,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	hosstedcomv1 "github.com/kubebuilder-test/new/api/v1"
+	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
 	//+kubebuilder:scaffold:imports
 )
 

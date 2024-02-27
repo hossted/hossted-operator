@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"time"
 
-	hosstedcomv1 "github.com/kubebuilder-test/new/api/v1"
+	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
 )
 
 // HosstedprojectReconciler reconciles a Hosstedproject object

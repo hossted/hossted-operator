@@ -1,4 +1,4 @@
-module github.com/kubebuilder-test/new
+module github.com/hossted/hossted-operator
 
 go 1.19
 
