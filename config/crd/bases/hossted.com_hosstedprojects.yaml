@@ -38,8 +38,6 @@ spec:
             description: HosstedprojectSpec defines the desired state of Hosstedproject
             properties:
               foo:
-                description: Foo is an example field of Hosstedproject. Edit hosstedproject_types.go
-                  to remove/update
                 type: string
             type: object
           status:
