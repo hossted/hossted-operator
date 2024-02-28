@@ -37,8 +37,10 @@ spec:
           spec:
             description: HosstedprojectSpec defines the desired state of Hosstedproject
             properties:
-              foo:
-                type: string
+              deny_namespaces:
+                items:
+                  type: string
+                type: array
             type: object
           status:
             description: HosstedprojectStatus defines the observed state of Hosstedproject
