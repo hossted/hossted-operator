@@ -1,19 +1,3 @@
-/*
-Copyright 2024.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package controllers
 
 import (
@@ -62,14 +46,12 @@ func (r *HosstedProjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// Collector collects information about the application, Helm releases, pods, and services.
 type Collector struct {
-	App []AppInfo `json:"app_info"`
+	AppAPIInfo AppAPIInfo `json:"app_api_info"`
+	AppInfo    AppInfo    `json:"app_info"`
 }
 
-// AppInfo contains information about an application, including its API, Helm release, pods, and services.
 type AppInfo struct {
-	AppAPIInfo  AppAPIInfo    `json:"app_api_info"`
 	HelmInfo    HelmInfo      `json:"helm_info"`
 	PodInfo     []PodInfo     `json:"pod_info"`
 	ServiceInfo []ServiceInfo `json:"service_info"`
@@ -116,7 +98,8 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context) (*Collector, e
 		return nil, err
 	}
 
-	var appHolder []AppInfo
+	var appInfo AppInfo
+
 	for _, ns := range namespaceList {
 		releases, err := helm.ListReleases(ns)
 		if err != nil {
@@ -172,22 +155,20 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context) (*Collector, e
 				svcHolder = append(svcHolder, svcInfo)
 			}
 
-			app := AppInfo{
-				AppAPIInfo: AppAPIInfo{
-					AppName: release.Name,
-				},
+			appInfo = AppInfo{
 				HelmInfo:    helmInfo,
 				PodInfo:     podHolder,
 				ServiceInfo: svcHolder,
 			}
-
-			appHolder = append(appHolder, app)
 		}
 	}
 
-	return &Collector{
-		App: appHolder,
-	}, nil
+	collector := &Collector{
+		AppAPIInfo: AppAPIInfo{AppName: appInfo.HelmInfo.Name},
+		AppInfo:    appInfo,
+	}
+
+	return collector, nil
 }
 
 // listNamespaces lists all namespaces in the cluster.
