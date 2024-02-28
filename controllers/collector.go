@@ -70,7 +70,10 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 		return &Collector{}, err
 	}
 
-	for _, ns := range namespaceList {
+	// Assuming instance.Spec.DenyNamespaces is the slice of denied namespaces
+	filteredNamespaces := filter(namespaceList, instance.Spec.DenyNamespaces)
+
+	for _, ns := range filteredNamespaces {
 		releases, err := r.listReleases(ctx, ns)
 		if err != nil {
 			return nil, err

@@ -22,7 +22,7 @@ import (
 
 // HosstedprojectSpec defines the desired state of Hosstedproject
 type HosstedprojectSpec struct {
-	DenyNamespaces []string `json:"deny_namespaces,omitempty"`
+	DenyNamespaces []string `json:"denyNamespaces,omitempty"`
 }
 
 // HosstedprojectStatus defines the observed state of Hosstedproject

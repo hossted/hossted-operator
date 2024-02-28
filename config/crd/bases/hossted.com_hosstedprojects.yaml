@@ -37,7 +37,7 @@ spec:
           spec:
             description: HosstedprojectSpec defines the desired state of Hosstedproject
             properties:
-              deny_namespaces:
+              denyNamespaces:
                 items:
                   type: string
                 type: array
