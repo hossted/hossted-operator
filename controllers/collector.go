@@ -79,6 +79,11 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			return nil, err
 		}
 
+		if len(releases) == 0 {
+			// If there are no releases in this namespace, skip to the next one
+			continue
+		}
+
 		var helmInfo HelmInfo
 		var podHolder []PodInfo
 		var svcHolder []ServiceInfo
