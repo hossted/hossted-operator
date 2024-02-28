@@ -61,60 +61,65 @@ type HelmInfo struct {
 	AppVersion string    `json:"appVersion"`
 }
 
-// collector collects information about pods, services, and Helm releases across all namespaces.
-func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hosstedcomv1.Hosstedproject) (*Collector, error) {
+func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hosstedcomv1.Hosstedproject) ([]*Collector, error) {
 
-	var appInfo AppInfo
+	var collectors []*Collector
 	namespaceList, err := r.listNamespaces(ctx)
 	if err != nil {
-		return &Collector{}, err
+		return nil, err
 	}
 
 	// Assuming instance.Spec.DenyNamespaces is the slice of denied namespaces
 	filteredNamespaces := filter(namespaceList, instance.Spec.DenyNamespaces)
 
 	for _, ns := range filteredNamespaces {
+
 		releases, err := r.listReleases(ctx, ns)
 		if err != nil {
 			return nil, err
 		}
 
+		var helmInfo HelmInfo
+		var podHolder []PodInfo
+		var svcHolder []ServiceInfo
+		var pvcHolder []VolumeInfo
+
 		for _, release := range releases {
-			helmInfo, err := r.getHelmInfo(ctx, *release)
+			helmInfo, err = r.getHelmInfo(ctx, *release)
 			if err != nil {
 				return nil, err
 			}
 
-			podHolder, err := r.getPods(ctx, release.Namespace, release.Name)
+			podHolder, err = r.getPods(ctx, release.Namespace, release.Name)
 			if err != nil {
 				return nil, err
 			}
 
-			svcHolder, err := r.getServices(ctx, release.Namespace, release.Name)
+			svcHolder, err = r.getServices(ctx, release.Namespace, release.Name)
 			if err != nil {
 				return nil, err
 			}
 
-			pvcHolder, err := r.getVolumes(ctx, release.Namespace, release.Name)
+			pvcHolder, err = r.getVolumes(ctx, release.Namespace, release.Name)
 			if err != nil {
 				return nil, err
-			}
-
-			appInfo = AppInfo{
-				HelmInfo:    *helmInfo,
-				PodInfo:     podHolder,
-				ServiceInfo: svcHolder,
-				VolumeInfo:  pvcHolder,
 			}
 		}
+
+		appInfo := AppInfo{
+			HelmInfo:    helmInfo,
+			PodInfo:     podHolder,
+			ServiceInfo: svcHolder,
+			VolumeInfo:  pvcHolder,
+		}
+		collector := &Collector{
+			AppAPIInfo: AppAPIInfo{AppName: appInfo.HelmInfo.Name},
+			AppInfo:    appInfo,
+		}
+		collectors = append(collectors, collector)
 	}
 
-	collector := &Collector{
-		AppAPIInfo: AppAPIInfo{AppName: appInfo.HelmInfo.Name},
-		AppInfo:    appInfo,
-	}
-
-	return collector, nil
+	return collectors, nil
 }
 
 // listReleases retrieves all Helm releases in the specified namespace.
@@ -123,8 +128,8 @@ func (r *HosstedProjectReconciler) listReleases(ctx context.Context, namespace s
 }
 
 // getHelmInfo retrieves Helm release information.
-func (r *HosstedProjectReconciler) getHelmInfo(ctx context.Context, release helmrelease.Release) (*HelmInfo, error) {
-	return &HelmInfo{
+func (r *HosstedProjectReconciler) getHelmInfo(ctx context.Context, release helmrelease.Release) (HelmInfo, error) {
+	return HelmInfo{
 		Name:       release.Name,
 		Namespace:  release.Namespace,
 		Revision:   release.Version,

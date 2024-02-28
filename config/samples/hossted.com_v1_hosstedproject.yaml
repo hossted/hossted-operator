@@ -11,3 +11,6 @@ metadata:
 spec:
   denyNamespaces: 
   - kube-system
+  - local-path-storage
+  - kube-node-lease
+  - kube-public

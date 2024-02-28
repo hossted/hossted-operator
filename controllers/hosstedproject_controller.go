@@ -42,7 +42,7 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	} else {
 		j, _ := json.Marshal(collector)
 		fmt.Println(string(j))
-		return ctrl.Result{RequeueAfter: time.Second * 3}, nil
+		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 	}
 
 }
