@@ -44,6 +44,11 @@ spec:
             type: object
           status:
             description: HosstedprojectStatus defines the observed state of Hosstedproject
+            properties:
+              clusterUUID:
+                type: string
+            required:
+            - clusterUUID
             type: object
         type: object
     served: true

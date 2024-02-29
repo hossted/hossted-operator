@@ -27,6 +27,7 @@ type HosstedprojectSpec struct {
 
 // HosstedprojectStatus defines the observed state of Hosstedproject
 type HosstedprojectStatus struct {
+	ClusterUUID string `json:"clusterUUID"`
 }
 
 // +kubebuilder:object:root=true
