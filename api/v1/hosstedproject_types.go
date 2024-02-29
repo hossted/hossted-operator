@@ -22,6 +22,7 @@ import (
 
 // HosstedprojectSpec defines the desired state of Hosstedproject
 type HosstedprojectSpec struct {
+	Stop           bool     `json:"stop,omitempty"`
 	DenyNamespaces []string `json:"denyNamespaces,omitempty"`
 }
 

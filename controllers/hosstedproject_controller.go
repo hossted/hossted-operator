@@ -15,7 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // HosstedProjectReconciler reconciles a HosstedProject object
@@ -29,7 +28,7 @@ type HosstedProjectReconciler struct {
 //+kubebuilder:rbac:groups=hossted.com,resources=hosstedprojects/finalizers,verbs=update
 
 func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	logger := ctrl.Log.WithName("controllers").WithName("hosstedproject")
 
 	// get hoststedproject custom resource
 	instance := &hosstedcomv1.Hosstedproject{}
@@ -41,27 +40,30 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
-	// patch the status with clusterUUID
-	_, _, err = r.patchStatus(ctx, instance, func(obj client.Object) client.Object {
-		in := obj.(*hosstedcomv1.Hosstedproject)
-		if in.Status.ClusterUUID == "" {
-			in.Status.ClusterUUID = uuid.NewString()
+	if !instance.Spec.Stop {
+		// patch the status with clusterUUID
+		_, _, err = r.patchStatus(ctx, instance, func(obj client.Object) client.Object {
+			in := obj.(*hosstedcomv1.Hosstedproject)
+			if in.Status.ClusterUUID == "" {
+				in.Status.ClusterUUID = uuid.NewString()
+			}
+			return in
+		})
+
+		// collect info about resources
+		collector, err := r.collector(ctx, instance)
+		if err != nil {
+			return ctrl.Result{}, err
+		} else {
+			j, _ := json.Marshal(collector)
+			// resp, err := internalhttp.HttpRequest(j)
+
+			fmt.Println(string(j))
+			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 		}
-		return in
-	})
-
-	// collect info about resources
-	collector, err := r.collector(ctx, instance)
-	if err != nil {
-		return ctrl.Result{}, err
-	} else {
-		j, _ := json.Marshal(collector)
-		// resp, err := internalhttp.HttpRequest(j)
-
-		fmt.Println(string(j))
-		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 	}
-
+	logger.Info("Reconcilation Stopped", "name", req.Name)
+	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
