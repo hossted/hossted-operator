@@ -31,6 +31,7 @@ type HosstedProjectReconciler struct {
 func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
+	// get hoststedproject custom resource
 	instance := &hosstedcomv1.Hosstedproject{}
 	err := r.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
@@ -40,6 +41,7 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
+	// patch the status with clusterUUID
 	_, _, err = r.patchStatus(ctx, instance, func(obj client.Object) client.Object {
 		in := obj.(*hosstedcomv1.Hosstedproject)
 		if in.Status.ClusterUUID == "" {
@@ -48,6 +50,7 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return in
 	})
 
+	// collect info about resources
 	collector, err := r.collector(ctx, instance)
 	if err != nil {
 		return ctrl.Result{}, err

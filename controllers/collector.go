@@ -97,6 +97,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			svcHolder []ServiceInfo
 			pvcHolder []VolumeInfo
 			ingHolder []IngressInfo
+			appUUID   string
 		)
 
 		for _, release := range releases {
@@ -119,7 +120,13 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			if err != nil {
 				return nil, err
 			}
+
 			ingHolder, err = r.getIngress(ctx, release.Namespace, release.Name)
+			if err != nil {
+				return nil, err
+			}
+
+			appUUID, err = r.getAppUUID(ctx, "uuid", release.Namespace)
 			if err != nil {
 				return nil, err
 			}
@@ -133,8 +140,12 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			IngressInfo: ingHolder,
 		}
 		collector := &Collector{
-			AppAPIInfo: AppAPIInfo{AppName: appInfo.HelmInfo.Name},
-			AppInfo:    appInfo,
+			AppAPIInfo: AppAPIInfo{
+				AppName:     appInfo.HelmInfo.Name,
+				ClusterUUID: instance.Status.ClusterUUID,
+				AppUUID:     appUUID,
+			},
+			AppInfo: appInfo,
 		}
 		collectors = append(collectors, collector)
 	}
@@ -250,4 +261,14 @@ func (r *HosstedProjectReconciler) getIngress(ctx context.Context, namespace, re
 	}
 
 	return ingHolder, nil
+}
+
+// getAppUUID from secret data uuid
+func (r *HosstedProjectReconciler) getAppUUID(ctx context.Context, name, namespace string) (string, error) {
+	secret, err := r.getSecret(ctx, name, namespace)
+	if err != nil {
+		return "", err
+	}
+
+	return string(secret.Data["uuid"]), nil
 }

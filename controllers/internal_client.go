@@ -87,7 +87,7 @@ func (r *HosstedProjectReconciler) listVolumes(ctx context.Context, namespace st
 	return pvcList, nil
 }
 
-// listVolumes lists volumes in a given namespace with specific labels.
+// listIngresses lists ingresses in a given namespace with specific labels.
 func (r *HosstedProjectReconciler) listIngresses(ctx context.Context, namespace string, labels map[string]string) (*networkingv1.IngressList, error) {
 	ingressList := &networkingv1.IngressList{}
 
@@ -101,6 +101,20 @@ func (r *HosstedProjectReconciler) listIngresses(ctx context.Context, namespace 
 		return nil, err
 	}
 	return ingressList, nil
+}
+
+// getSecrets gets secrets in a given namespace with specific labels.
+func (r *HosstedProjectReconciler) getSecret(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
+	getSecret := &corev1.Secret{}
+
+	err := r.Client.Get(ctx, types.NamespacedName{
+		Name:      name,
+		Namespace: namespace,
+	}, getSecret, &client.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return getSecret, nil
 }
 
 // patchStatus patches the status of an object.
