@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
-	internalhttp "github.com/hossted/hossted-operator/pkg/http"
+	// internalhttp "github.com/hossted/hossted-operator/pkg/http"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
