@@ -4,6 +4,7 @@ import (
 	"context"
 
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -72,4 +73,20 @@ func (r *HosstedProjectReconciler) listVolumes(ctx context.Context, namespace st
 	}
 
 	return pvcList, nil
+}
+
+// listVolumes lists volumes in a given namespace with specific labels.
+func (r *HosstedProjectReconciler) listIngresses(ctx context.Context, namespace string, labels map[string]string) (*networkingv1.IngressList, error) {
+	ingressList := &networkingv1.IngressList{}
+
+	listOpts := []client.ListOption{
+		client.InNamespace(namespace),
+		client.MatchingLabels(labels),
+	}
+
+	err := r.Client.List(ctx, ingressList, listOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return ingressList, nil
 }
