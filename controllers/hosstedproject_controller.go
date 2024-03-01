@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"github.com/google/uuid"
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
@@ -27,10 +28,11 @@ type HosstedProjectReconciler struct {
 //+kubebuilder:rbac:groups=hossted.com,resources=hosstedprojects/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=hossted.com,resources=hosstedprojects/finalizers,verbs=update
 
+// Reconcile reconciles the Hosstedproject custom resource.
 func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := ctrl.Log.WithName("controllers").WithName("hosstedproject")
 
-	// get hoststedproject custom resource
+	// Get Hosstedproject custom resource
 	instance := &hosstedcomv1.Hosstedproject{}
 	err := r.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
@@ -40,29 +42,41 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
+	// Check if reconciliation should proceed
 	if !instance.Spec.Stop {
-		// patch the status with clusterUUID
-		_, _, err = r.patchStatus(ctx, instance, func(obj client.Object) client.Object {
+		// Patch the status with ClusterUUID
+		_, _, err := r.patchStatus(ctx, instance, func(obj client.Object) client.Object {
 			in := obj.(*hosstedcomv1.Hosstedproject)
 			if in.Status.ClusterUUID == "" {
 				in.Status.ClusterUUID = uuid.NewString()
 			}
 			return in
 		})
-
-		// collect info about resources
-		collector, err := r.collector(ctx, instance)
 		if err != nil {
 			return ctrl.Result{}, err
-		} else {
-			j, _ := json.Marshal(collector)
-			// resp, err := internalhttp.HttpRequest(j)
-
-			fmt.Println(string(j))
-			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 		}
+
+		// Collect info about resources
+		collectors, err := r.collector(ctx, instance)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		// Marshal collectors into JSON
+		desiredState, err := json.Marshal(collectors)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		// Check if the desired state is different from the current state
+		ok, err := IsEqualJson(string(desiredState), instance.Status.CurrentState)
+		if !ok {
+			fmt.Println("patch")
+		}
+		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 	}
-	logger.Info("Reconcilation Stopped", "name", req.Name)
+
+	logger.Info("Reconciliation stopped", "name", req.Name)
 	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 }
 
@@ -71,4 +85,21 @@ func (r *HosstedProjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hosstedcomv1.Hosstedproject{}).
 		Complete(r)
+}
+
+func IsEqualJson(s1, s2 string) (bool, error) {
+	var o1 interface{}
+	var o2 interface{}
+
+	var err error
+	err = json.Unmarshal([]byte(s1), &o1)
+	if err != nil {
+		return false, fmt.Errorf("error mashalling string 1 :: %s", err.Error())
+	}
+	err = json.Unmarshal([]byte(s2), &o2)
+	if err != nil {
+		return false, fmt.Errorf("error mashalling string 2 :: %s", err.Error())
+	}
+
+	return reflect.DeepEqual(o1, o2), nil
 }

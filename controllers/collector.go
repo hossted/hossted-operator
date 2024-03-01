@@ -7,6 +7,7 @@ import (
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
 	helm "github.com/hossted/hossted-operator/pkg/helm"
 	helmrelease "helm.sh/helm/v3/pkg/release"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Collector struct {
@@ -79,6 +80,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 	// Assuming instance.Spec.DenyNamespaces is the slice of denied namespaces
 	filteredNamespaces := filter(namespaceList, instance.Spec.DenyNamespaces)
 
+	var reconciledHelmReleases = make(map[string]string)
 	for _, ns := range filteredNamespaces {
 
 		releases, err := r.listReleases(ctx, ns)
@@ -130,6 +132,9 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			if err != nil {
 				return nil, err
 			}
+
+			reconciledHelmReleases[release.Name] = release.Namespace
+
 		}
 
 		appInfo := AppInfo{
@@ -148,6 +153,17 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			AppInfo: appInfo,
 		}
 		collectors = append(collectors, collector)
+
+	}
+
+	_, _, err = r.patchStatus(ctx, instance, func(obj client.Object) client.Object {
+		in := obj.(*hosstedcomv1.Hosstedproject)
+		in.Status.ReconciledHelmReleases = reconciledHelmReleases
+		return in
+	})
+
+	if err != nil {
+		return nil, err
 	}
 
 	return collectors, nil

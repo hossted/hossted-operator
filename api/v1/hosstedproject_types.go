@@ -28,7 +28,10 @@ type HosstedprojectSpec struct {
 
 // HosstedprojectStatus defines the observed state of Hosstedproject
 type HosstedprojectStatus struct {
-	ClusterUUID string `json:"clusterUUID"`
+	ClusterUUID             string            `json:"clusterUUID,omitempty"`
+	LastReconciledTimestamp string            `json:"lastReconcileTimestamp,omitempty"`
+	ReconciledHelmReleases  map[string]string `json:"reconcileHelmReleases,omitempty"`
+	CurrentState            string            `json:"currentState,omitempty"`
 }
 
 // +kubebuilder:object:root=true
