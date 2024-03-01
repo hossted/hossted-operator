@@ -31,7 +31,7 @@ type HosstedprojectStatus struct {
 	ClusterUUID             string            `json:"clusterUUID,omitempty"`
 	LastReconciledTimestamp string            `json:"lastReconcileTimestamp,omitempty"`
 	ReconciledHelmReleases  map[string]string `json:"reconcileHelmReleases,omitempty"`
-	CurrentState            string            `json:"currentState,omitempty"`
+	Revision                []int             `json:"revision,omitempty"`
 }
 
 // +kubebuilder:object:root=true

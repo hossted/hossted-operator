@@ -2,9 +2,7 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"reflect"
+	"sort"
 
 	"github.com/google/uuid"
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
@@ -57,37 +55,43 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 
 		// Collect info about resources
-		collectors, err := r.collector(ctx, instance)
+		_, currentRevision, err := r.collector(ctx, instance)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 
-		// Marshal collectors into JSON
-		desiredState, err := json.Marshal(collectors)
+		sort.Ints(currentRevision)
+
+		_, _, err = r.patchStatus(ctx, instance, func(obj client.Object) client.Object {
+			in := obj.(*hosstedcomv1.Hosstedproject)
+			if in.Status.Revision == nil {
+				in.Status.Revision = currentRevision
+			}
+			return in
+		})
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 
-		// Check if the desired state is different from the current state
-		ok, err := IsEqualJson(string(desiredState), instance.Status.CurrentState)
-		if !ok {
-			_, _, err := r.patchStatus(ctx, instance, func(obj client.Object) client.Object {
+		if !compareSlices(instance.Status.Revision, currentRevision) {
+			// Marshal collectors into JSON
+			// _, err = json.Marshal(collectors)
+			// if err != nil {
+			// 	return ctrl.Result{}, err
+			// }
+			// post request
+			logger.Info("Current state differs from last state", "name", instance.Name)
+
+			_, _, err = r.patchStatus(ctx, instance, func(obj client.Object) client.Object {
 				in := obj.(*hosstedcomv1.Hosstedproject)
-				if in.Status.CurrentState == "" {
-					in.Status.CurrentState = string(desiredState)
-					return in
-				}
-				in.Status.CurrentState = string(desiredState)
+				in.Status.Revision = currentRevision
 				return in
 			})
 			if err != nil {
 				return ctrl.Result{}, err
-			} else {
-				logger.Info("Desired state is same as current state. Skipping patching.")
-				return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 			}
-
 		}
+
 	}
 
 	logger.Info("Reconciliation stopped", "name", req.Name)
@@ -101,19 +105,21 @@ func (r *HosstedProjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func IsEqualJson(s1, s2 string) (bool, error) {
-	var o1 interface{}
-	var o2 interface{}
-
-	var err error
-	err = json.Unmarshal([]byte(s1), &o1)
-	if err != nil {
-		return false, fmt.Errorf("error mashalling string 1 :: %s", err.Error())
-	}
-	err = json.Unmarshal([]byte(s2), &o2)
-	if err != nil {
-		return false, fmt.Errorf("error mashalling string 2 :: %s", err.Error())
+func compareSlices(slice1, slice2 []int) bool {
+	// Check if the slices have different lengths
+	if len(slice1) != len(slice2) {
+		return false
 	}
 
-	return reflect.DeepEqual(o1, o2), nil
+	sort.Ints(slice1)
+	sort.Ints(slice2)
+	// Iterate over each element of the slices and compare them
+	for i := range slice1 {
+		if slice1[i] != slice2[i] {
+			return false
+		}
+	}
+
+	// If all elements are equal, return true
+	return true
 }

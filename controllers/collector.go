@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
@@ -69,23 +70,24 @@ type HelmInfo struct {
 	AppVersion string    `json:"appVersion"`
 }
 
-func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hosstedcomv1.Hosstedproject) ([]*Collector, error) {
+func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hosstedcomv1.Hosstedproject) ([]*Collector, []int, error) {
 
 	var collectors []*Collector
 	namespaceList, err := r.listNamespaces(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Assuming instance.Spec.DenyNamespaces is the slice of denied namespaces
 	filteredNamespaces := filter(namespaceList, instance.Spec.DenyNamespaces)
 
 	var reconciledHelmReleases = make(map[string]string)
+	var revisions []int
 	for _, ns := range filteredNamespaces {
 
 		releases, err := r.listReleases(ctx, ns)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		if len(releases) == 0 {
@@ -105,35 +107,36 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 		for _, release := range releases {
 			helmInfo, err = r.getHelmInfo(ctx, *release)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			podHolder, err = r.getPods(ctx, release.Namespace, release.Name)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			svcHolder, err = r.getServices(ctx, release.Namespace, release.Name)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			pvcHolder, err = r.getVolumes(ctx, release.Namespace, release.Name)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			ingHolder, err = r.getIngress(ctx, release.Namespace, release.Name)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			appUUID, err = r.getAppUUID(ctx, "uuid", release.Namespace)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			reconciledHelmReleases[release.Name] = release.Namespace
+			revisions = append(revisions, release.Version)
 
 		}
 
@@ -156,6 +159,8 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 
 	}
 
+	sort.Ints(revisions)
+
 	_, _, err = r.patchStatus(ctx, instance, func(obj client.Object) client.Object {
 		in := obj.(*hosstedcomv1.Hosstedproject)
 		in.Status.ReconciledHelmReleases = reconciledHelmReleases
@@ -163,10 +168,10 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return collectors, nil
+	return collectors, revisions, nil
 }
 
 // listReleases retrieves all Helm releases in the specified namespace.
