@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"sort"
 
 	"github.com/google/uuid"
@@ -55,7 +57,7 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 
 		// Collect info about resources
-		_, currentRevision, err := r.collector(ctx, instance)
+		collector, currentRevision, err := r.collector(ctx, instance)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -75,10 +77,11 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 		if !compareSlices(instance.Status.Revision, currentRevision) {
 			// Marshal collectors into JSON
-			// _, err = json.Marshal(collectors)
-			// if err != nil {
-			// 	return ctrl.Result{}, err
-			// }
+			collectorJson, err := json.Marshal(collector)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			fmt.Println(string(collectorJson))
 			// post request
 			logger.Info("Current state differs from last state", "name", instance.Name)
 
@@ -90,6 +93,9 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+		} else {
+			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 		}
 
 	}
