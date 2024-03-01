@@ -71,9 +71,23 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		// Check if the desired state is different from the current state
 		ok, err := IsEqualJson(string(desiredState), instance.Status.CurrentState)
 		if !ok {
-			fmt.Println("patch")
+			_, _, err := r.patchStatus(ctx, instance, func(obj client.Object) client.Object {
+				in := obj.(*hosstedcomv1.Hosstedproject)
+				if in.Status.CurrentState == "" {
+					in.Status.CurrentState = string(desiredState)
+					return in
+				}
+				in.Status.CurrentState = string(desiredState)
+				return in
+			})
+			if err != nil {
+				return ctrl.Result{}, err
+			} else {
+				logger.Info("Desired state is same as current state. Skipping patching.")
+				return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+			}
+
 		}
-		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 	}
 
 	logger.Info("Reconciliation stopped", "name", req.Name)
