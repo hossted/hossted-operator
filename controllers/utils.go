@@ -1,8 +1,7 @@
 package controllers
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
+	"sort"
 	"time"
 )
 
@@ -41,47 +40,21 @@ func getCurrentTimeString() string {
 	return timeString
 }
 
-func mapsEqual(m1, m2 map[string]interface{}) bool {
-	if len(m1) != len(m2) {
+func compareSlices(slice1, slice2 []int) bool {
+	// Check if the slices have different lengths
+	if len(slice1) != len(slice2) {
 		return false
 	}
-	for k, v1 := range m1 {
-		v2, ok := m2[k]
-		if !ok || !valuesEqual(v1, v2) {
+
+	sort.Ints(slice1)
+	sort.Ints(slice2)
+	// Iterate over each element of the slices and compare them
+	for i := range slice1 {
+		if slice1[i] != slice2[i] {
 			return false
 		}
 	}
-	return true
-}
 
-func valuesEqual(v1, v2 interface{}) bool {
-	switch t1 := v1.(type) {
-	case map[string]interface{}:
-		t2, ok := v2.(map[string]interface{})
-		if !ok || !mapsEqual(t1, t2) {
-			return false
-		}
-	case []interface{}:
-		t2, ok := v2.([]interface{})
-		if !ok || len(t1) != len(t2) {
-			return false
-		}
-		for i := range t1 {
-			if !valuesEqual(t1[i], t2[i]) {
-				return false
-			}
-		}
-	default:
-		if v1 != v2 {
-			return false
-		}
-	}
+	// If all elements are equal, return true
 	return true
-}
-
-func computeSHA256(jsonStr string) string {
-	hash := sha256.New()
-	hash.Write([]byte(jsonStr))
-	hashInBytes := hash.Sum(nil)
-	return hex.EncodeToString(hashInBytes)
 }

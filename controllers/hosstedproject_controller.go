@@ -104,22 +104,3 @@ func (r *HosstedProjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&hosstedcomv1.Hosstedproject{}).
 		Complete(r)
 }
-
-func compareSlices(slice1, slice2 []int) bool {
-	// Check if the slices have different lengths
-	if len(slice1) != len(slice2) {
-		return false
-	}
-
-	sort.Ints(slice1)
-	sort.Ints(slice2)
-	// Iterate over each element of the slices and compare them
-	for i := range slice1 {
-		if slice1[i] != slice2[i] {
-			return false
-		}
-	}
-
-	// If all elements are equal, return true
-	return true
-}
