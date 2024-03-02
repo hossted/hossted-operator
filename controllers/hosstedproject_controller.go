@@ -27,6 +27,13 @@ type HosstedProjectReconciler struct {
 //+kubebuilder:rbac:groups=hossted.com,resources=hosstedprojects,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=hossted.com,resources=hosstedprojects/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=hossted.com,resources=hosstedprojects/finalizers,verbs=update
+//+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=list;get;watch
+//+kubebuilder:rbac:groups="",resources=namespaces,verbs=list;get;watch
+//+kubebuilder:rbac:groups="",resources=pods,verbs=list;get;watch
+//+kubebuilder:rbac:groups="",resources=configmaps,verbs=list;get;watch
+//+kubebuilder:rbac:groups="",resources=services,verbs=list;get;watch
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=list;get;watch
+//+kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=list;get;watch
 
 // Reconcile reconciles the Hosstedproject custom resource.
 func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
