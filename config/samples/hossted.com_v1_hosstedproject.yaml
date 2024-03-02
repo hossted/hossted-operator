@@ -9,6 +9,7 @@ metadata:
     app.kubernetes.io/created-by: new
   name: hosstedproject-sample
 spec:
+  stop: false
   denyNamespaces: 
   - kube-system
   - local-path-storage

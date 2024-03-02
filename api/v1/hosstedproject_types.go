@@ -22,11 +22,16 @@ import (
 
 // HosstedprojectSpec defines the desired state of Hosstedproject
 type HosstedprojectSpec struct {
+	Stop           bool     `json:"stop,omitempty"`
 	DenyNamespaces []string `json:"denyNamespaces,omitempty"`
 }
 
 // HosstedprojectStatus defines the observed state of Hosstedproject
 type HosstedprojectStatus struct {
+	ClusterUUID             string            `json:"clusterUUID,omitempty"`
+	LastReconciledTimestamp string            `json:"lastReconcileTimestamp,omitempty"`
+	ReconciledHelmReleases  map[string]string `json:"reconcileHelmReleases,omitempty"`
+	Revision                []int             `json:"revision,omitempty"`
 }
 
 // +kubebuilder:object:root=true

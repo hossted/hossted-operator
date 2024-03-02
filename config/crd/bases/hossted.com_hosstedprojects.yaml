@@ -41,9 +41,24 @@ spec:
                 items:
                   type: string
                 type: array
+              stop:
+                type: boolean
             type: object
           status:
             description: HosstedprojectStatus defines the observed state of Hosstedproject
+            properties:
+              clusterUUID:
+                type: string
+              lastReconcileTimestamp:
+                type: string
+              reconcileHelmReleases:
+                additionalProperties:
+                  type: string
+                type: object
+              revision:
+                items:
+                  type: integer
+                type: array
             type: object
         type: object
     served: true

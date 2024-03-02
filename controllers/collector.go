@@ -2,11 +2,13 @@ package controllers
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
 	helm "github.com/hossted/hossted-operator/pkg/helm"
 	helmrelease "helm.sh/helm/v3/pkg/release"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Collector struct {
@@ -19,6 +21,7 @@ type AppInfo struct {
 	PodInfo     []PodInfo     `json:"pod_info"`
 	ServiceInfo []ServiceInfo `json:"service_info"`
 	VolumeInfo  []VolumeInfo  `json:"volume_info"`
+	IngressInfo []IngressInfo `json:"ingress_info"`
 }
 
 // AppAPIInfo contains basic information about the application API.
@@ -34,6 +37,12 @@ type ServiceInfo struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
 	Port      int32  `json:"port"`
+}
+
+type IngressInfo struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	Domain    string `json:"domain"`
 }
 
 // PodInfo contains information about a Kubernetes pod.
@@ -61,22 +70,24 @@ type HelmInfo struct {
 	AppVersion string    `json:"appVersion"`
 }
 
-func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hosstedcomv1.Hosstedproject) ([]*Collector, error) {
+func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hosstedcomv1.Hosstedproject) ([]*Collector, []int, error) {
 
 	var collectors []*Collector
 	namespaceList, err := r.listNamespaces(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Assuming instance.Spec.DenyNamespaces is the slice of denied namespaces
 	filteredNamespaces := filter(namespaceList, instance.Spec.DenyNamespaces)
 
+	var reconciledHelmReleases = make(map[string]string)
+	var revisions []int
 	for _, ns := range filteredNamespaces {
 
 		releases, err := r.listReleases(ctx, ns)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		if len(releases) == 0 {
@@ -84,31 +95,49 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			continue
 		}
 
-		var helmInfo HelmInfo
-		var podHolder []PodInfo
-		var svcHolder []ServiceInfo
-		var pvcHolder []VolumeInfo
+		var (
+			helmInfo  HelmInfo
+			podHolder []PodInfo
+			svcHolder []ServiceInfo
+			pvcHolder []VolumeInfo
+			ingHolder []IngressInfo
+			appUUID   string
+		)
 
 		for _, release := range releases {
 			helmInfo, err = r.getHelmInfo(ctx, *release)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			podHolder, err = r.getPods(ctx, release.Namespace, release.Name)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			svcHolder, err = r.getServices(ctx, release.Namespace, release.Name)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			pvcHolder, err = r.getVolumes(ctx, release.Namespace, release.Name)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
+
+			ingHolder, err = r.getIngress(ctx, release.Namespace, release.Name)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			appUUID, err = r.getAppUUID(ctx, "uuid", release.Namespace)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			reconciledHelmReleases[release.Name] = release.Namespace
+			revisions = append(revisions, release.Version)
+
 		}
 
 		appInfo := AppInfo{
@@ -116,15 +145,33 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			PodInfo:     podHolder,
 			ServiceInfo: svcHolder,
 			VolumeInfo:  pvcHolder,
+			IngressInfo: ingHolder,
 		}
 		collector := &Collector{
-			AppAPIInfo: AppAPIInfo{AppName: appInfo.HelmInfo.Name},
-			AppInfo:    appInfo,
+			AppAPIInfo: AppAPIInfo{
+				AppName:     appInfo.HelmInfo.Name,
+				ClusterUUID: instance.Status.ClusterUUID,
+				AppUUID:     appUUID,
+			},
+			AppInfo: appInfo,
 		}
 		collectors = append(collectors, collector)
+
 	}
 
-	return collectors, nil
+	sort.Ints(revisions)
+
+	_, _, err = r.patchStatus(ctx, instance, func(obj client.Object) client.Object {
+		in := obj.(*hosstedcomv1.Hosstedproject)
+		in.Status.ReconciledHelmReleases = reconciledHelmReleases
+		return in
+	})
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return collectors, revisions, nil
 }
 
 // listReleases retrieves all Helm releases in the specified namespace.
@@ -212,4 +259,37 @@ func (r *HosstedProjectReconciler) getVolumes(ctx context.Context, namespace, re
 	}
 
 	return pvcHolder, nil
+}
+
+// getIngress retrieves ingress for a given release in the specified namespace.
+func (r *HosstedProjectReconciler) getIngress(ctx context.Context, namespace, releaseName string) ([]IngressInfo, error) {
+	ings, err := r.listIngresses(ctx, namespace, map[string]string{
+		"app.kubernetes.io/instance":   releaseName,
+		"app.kubernetes.io/managed-by": "Helm",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var ingHolder []IngressInfo
+	for _, ing := range ings.Items {
+		ingInfo := IngressInfo{
+			Name:      ing.Name,
+			Namespace: ing.Namespace,
+			Domain:    ing.Spec.Rules[0].Host,
+		}
+		ingHolder = append(ingHolder, ingInfo)
+	}
+
+	return ingHolder, nil
+}
+
+// getAppUUID from secret data uuid
+func (r *HosstedProjectReconciler) getAppUUID(ctx context.Context, name, namespace string) (string, error) {
+	secret, err := r.getSecret(ctx, name, namespace)
+	if err != nil {
+		return "", err
+	}
+
+	return string(secret.Data["uuid"]), nil
 }
