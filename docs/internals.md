@@ -1,8 +1,39 @@
 # Internal Documentation
 
-### Description
+### High Level Objectives Controller Performs
 
-The `Collector` struct aggregates information about the application's API, including Helm releases, pods, services, volumes, and ingress.
+1. **Cluster UUID Generation:**
+   - The operator generates a unique Cluster UUID and stores it in the status of the Hossted project Custom Resource (CR).
+
+2. **Secret Parsing:**
+   - The operator reads a secret named `uuid` in each namespace and parses the value stored in the secret's body. This UUID is then used for various internal operations.
+
+3. **Status Object:**
+   - Implemented a status object providing:
+     - Current Cluster UUID.
+     - A map of Helm release names to their corresponding Helm releases reconciled by the operator.
+     - Last Reconciliation Timestamp.
+
+4. **Stop Reconciliation:**
+   - Ability to stop reconciliation by setting `stop: true` in the Hossted project CR. This allows for pausing reconciliation activities when necessary.
+
+5. **Helm Revision Management:**
+   - Operator stores Helm revision numbers and ensures that it only sends a POST request to the API if any updates occur on the Helm chart.
+
+6. **Environment Variables:**
+   - The operator relies on environment variables such as Auth Token and API URL for authentication and communication purposes.
+
+## Usage
+
+- **Viewing Current Status:**
+  - The current status of the Hossted project can be viewed using the following command:
+    ```bash
+    kubectl get hosstedproject -o yaml
+    ```
+
+### Core Collector Function
+
+The [Collector](../controllers/collector.go) function aggregates information about the application's API, including Helm releases, pods, services, volumes, and ingress.
 
 ### Fields
 
