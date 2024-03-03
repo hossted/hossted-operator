@@ -31,7 +31,21 @@ type HosstedprojectStatus struct {
 	ClusterUUID             string            `json:"clusterUUID,omitempty"`
 	LastReconciledTimestamp string            `json:"lastReconcileTimestamp,omitempty"`
 	ReconciledHelmReleases  map[string]string `json:"reconcileHelmReleases,omitempty"`
+	HelmStatus              []HelmInfo        `json:"helmStatus,omitempty"`
 	Revision                []int             `json:"revision,omitempty"`
+}
+
+// Define HelmInfo struct
+
+type HelmInfo struct {
+	Name       string `json:"name,omitempty"`
+	Namespace  string `json:"namespace,omitempty"`
+	AppUUID    string `json:"appUUID,omitempty"`
+	Revision   int    `json:"revision,omitempty"`
+	Updated    string `json:"updated,omitempty"`
+	Status     string `json:"status,omitempty"`
+	Chart      string `json:"chart,omitempty"`
+	AppVersion string `json:"appVersion,omitempty"`
 }
 
 // +kubebuilder:object:root=true

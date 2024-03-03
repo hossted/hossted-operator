@@ -5,10 +5,10 @@ import (
 	"sort"
 	"time"
 
+	"github.com/google/uuid"
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
 	helm "github.com/hossted/hossted-operator/pkg/helm"
 	helmrelease "helm.sh/helm/v3/pkg/release"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Collector struct {
@@ -17,11 +17,11 @@ type Collector struct {
 }
 
 type AppInfo struct {
-	HelmInfo    HelmInfo      `json:"helm_info"`
-	PodInfo     []PodInfo     `json:"pod_info"`
-	ServiceInfo []ServiceInfo `json:"service_info"`
-	VolumeInfo  []VolumeInfo  `json:"volume_info"`
-	IngressInfo []IngressInfo `json:"ingress_info"`
+	HelmInfo    hosstedcomv1.HelmInfo `json:"helm_info"`
+	PodInfo     []PodInfo             `json:"pod_info"`
+	ServiceInfo []ServiceInfo         `json:"service_info"`
+	VolumeInfo  []VolumeInfo          `json:"volume_info"`
+	IngressInfo []IngressInfo         `json:"ingress_info"`
 }
 
 // AppAPIInfo contains basic information about the application API.
@@ -63,6 +63,7 @@ type VolumeInfo struct {
 type HelmInfo struct {
 	Name       string    `json:"name"`
 	Namespace  string    `json:"namespace"`
+	AppUUID    string    `json:"appUUID"`
 	Revision   int       `json:"revision"`
 	Updated    time.Time `json:"updated"`
 	Status     string    `json:"status"`
@@ -81,8 +82,10 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 	// Assuming instance.Spec.DenyNamespaces is the slice of denied namespaces
 	filteredNamespaces := filter(namespaceList, instance.Spec.DenyNamespaces)
 
-	var reconciledHelmReleases = make(map[string]string)
+	//var reconciledHelmReleases = make(map[string]string)
 	var revisions []int
+	var helmStatusMap = make(map[string]hosstedcomv1.HelmInfo) // Use a map to store unique HelmInfo structs
+
 	for _, ns := range filteredNamespaces {
 
 		releases, err := r.listReleases(ctx, ns)
@@ -95,20 +98,22 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			continue
 		}
 
+		// Initialize a slice to collect HelmInfo structs for this iteration
+
 		var (
-			helmInfo  HelmInfo
+			helmInfo  hosstedcomv1.HelmInfo
 			podHolder []PodInfo
 			svcHolder []ServiceInfo
 			pvcHolder []VolumeInfo
 			ingHolder []IngressInfo
-			appUUID   string
 		)
 
 		for _, release := range releases {
-			helmInfo, err = r.getHelmInfo(ctx, *release)
+			helmInfo, err = r.getHelmInfo(ctx, *release, instance)
 			if err != nil {
 				return nil, nil, err
 			}
+			helmStatusMap[helmInfo.AppUUID] = helmInfo // Add HelmInfo to the map using AppUUID as key
 
 			podHolder, err = r.getPods(ctx, release.Namespace, release.Name)
 			if err != nil {
@@ -130,15 +135,9 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 				return nil, nil, err
 			}
 
-			appUUID, err = r.getAppUUID(ctx, "uuid", release.Namespace)
-			if err != nil {
-				return nil, nil, err
-			}
-
-			reconciledHelmReleases[release.Name] = release.Namespace
-			revisions = append(revisions, release.Version)
-
 		}
+
+		// After collecting all HelmInfo structs for this iteration, assign to instance.Status.HelmStatus
 
 		appInfo := AppInfo{
 			HelmInfo:    helmInfo,
@@ -147,11 +146,12 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			VolumeInfo:  pvcHolder,
 			IngressInfo: ingHolder,
 		}
+
 		collector := &Collector{
 			AppAPIInfo: AppAPIInfo{
 				AppName:     appInfo.HelmInfo.Name,
 				ClusterUUID: instance.Status.ClusterUUID,
-				AppUUID:     appUUID,
+				AppUUID:     appInfo.HelmInfo.AppUUID,
 			},
 			AppInfo: appInfo,
 		}
@@ -160,15 +160,16 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 	}
 
 	sort.Ints(revisions)
+	// Convert map values to slice
+	var helmStatus []hosstedcomv1.HelmInfo
+	for _, helmInfo := range helmStatusMap {
+		helmStatus = append(helmStatus, helmInfo)
+	}
 
-	_, _, err = r.patchStatus(ctx, instance, func(obj client.Object) client.Object {
-		in := obj.(*hosstedcomv1.Hosstedproject)
-		in.Status.ReconciledHelmReleases = reconciledHelmReleases
-		return in
-	})
-
-	if err != nil {
-		return nil, nil, err
+	// Update instance status
+	instance.Status.HelmStatus = helmStatus
+	if err := r.Status().Update(ctx, instance); err != nil {
+		return []*Collector{}, nil, err
 	}
 
 	return collectors, revisions, nil
@@ -177,19 +178,6 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 // listReleases retrieves all Helm releases in the specified namespace.
 func (r *HosstedProjectReconciler) listReleases(ctx context.Context, namespace string) ([]*helmrelease.Release, error) {
 	return helm.ListReleases(namespace)
-}
-
-// getHelmInfo retrieves Helm release information.
-func (r *HosstedProjectReconciler) getHelmInfo(ctx context.Context, release helmrelease.Release) (HelmInfo, error) {
-	return HelmInfo{
-		Name:       release.Name,
-		Namespace:  release.Namespace,
-		Revision:   release.Version,
-		Updated:    release.Info.LastDeployed.Time,
-		Status:     string(release.Info.Status),
-		Chart:      release.Chart.Name(),
-		AppVersion: release.Chart.AppVersion(),
-	}, nil
 }
 
 // getPods retrieves pods for a given release in the specified namespace.
@@ -284,12 +272,42 @@ func (r *HosstedProjectReconciler) getIngress(ctx context.Context, namespace, re
 	return ingHolder, nil
 }
 
-// getAppUUID from secret data uuid
-func (r *HosstedProjectReconciler) getAppUUID(ctx context.Context, name, namespace string) (string, error) {
-	secret, err := r.getSecret(ctx, name, namespace)
-	if err != nil {
-		return "", err
+// getHelmInfo retrieves Helm release information.
+func (r *HosstedProjectReconciler) getHelmInfo(ctx context.Context, release helmrelease.Release, instance *hosstedcomv1.Hosstedproject) (hosstedcomv1.HelmInfo, error) {
+	helmStatus := instance.Status.HelmStatus // Get the current HelmStatus
+
+	existingUUID := findExistingUUID(helmStatus, release.Name, release.Namespace)
+	if existingUUID != "" {
+		return hosstedcomv1.HelmInfo{
+			Name:       release.Name,
+			Namespace:  release.Namespace,
+			AppUUID:    existingUUID,
+			Revision:   release.Version,
+			Updated:    release.Info.LastDeployed.Time.String(),
+			Status:     string(release.Info.Status),
+			Chart:      release.Chart.Name(),
+			AppVersion: release.Chart.AppVersion(),
+		}, nil
 	}
 
-	return string(secret.Data["uuid"]), nil
+	return hosstedcomv1.HelmInfo{
+		Name:       release.Name,
+		Namespace:  release.Namespace,
+		AppUUID:    uuid.NewString(),
+		Revision:   release.Version,
+		Updated:    release.Info.LastDeployed.Time.String(),
+		Status:     string(release.Info.Status),
+		Chart:      release.Chart.Name(),
+		AppVersion: release.Chart.AppVersion(),
+	}, nil
+}
+
+// findExistingUUID checks if the appUUID already exists in the status
+func findExistingUUID(helmStatus []hosstedcomv1.HelmInfo, releaseName, namespace string) string {
+	for _, info := range helmStatus {
+		if info.Name == releaseName && info.Namespace == namespace {
+			return info.AppUUID
+		}
+	}
+	return ""
 }
