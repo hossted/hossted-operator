@@ -58,6 +58,10 @@ spec:
         env:
         - name: KUBERNETES_CLUSTER_DOMAIN
           value: {{ quote .Values.kubernetesClusterDomain }}
+        - name: API_URL
+          value: {{ quote .Values.env.API_URL }}
+        - name: AUTH_TOKEN
+          value: {{ quote .Values.env.AUTH_TOKEN }}          
         image: {{ .Values.controllerManager.manager.image.repository }}:{{ .Values.controllerManager.manager.image.tag
           | default .Chart.AppVersion }}
         livenessProbe:

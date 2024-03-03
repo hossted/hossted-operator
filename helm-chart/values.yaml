@@ -33,7 +33,7 @@ controllerManager:
         - ALL
     image:
       repository: localhost:5001/hossted
-      tag: latest
+      tag: v1
     resources:
       limits:
         cpu: 500m
@@ -52,3 +52,6 @@ metricsService:
     protocol: TCP
     targetPort: https
   type: ClusterIP
+env:
+  API_URL: "https://asdfasdf"
+  AUTH_TOKEN: "asdfasdfasf"
