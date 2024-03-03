@@ -1,4 +1,6 @@
 nameOverride: hossted
+HOSSTED_API_URL: "https://"
+HOSSTED_AUTH_TOKEN: ""
 controllerManager:
   kubeRbacProxy:
     args:
@@ -33,7 +35,7 @@ controllerManager:
         - ALL
     image:
       repository: localhost:5001/hossted
-      tag: v1
+      tag: v4
     resources:
       limits:
         cpu: 500m
@@ -52,6 +54,4 @@ metricsService:
     protocol: TCP
     targetPort: https
   type: ClusterIP
-env:
-  API_URL: "https://asdfasdf"
-  AUTH_TOKEN: "asdfasdfasf"
+
