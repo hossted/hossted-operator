@@ -7,7 +7,7 @@ metadata:
     control-plane: controller-manager
   {{- include "hossted-operator.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.controllerManager.replicas }}
+  replicas: {{ .Values.operator.replicas }}
   selector:
     matchLabels:
       control-plane: controller-manager
@@ -37,33 +37,44 @@ spec:
                 values:
                 - linux
       containers:
-      - args: {{- toYaml .Values.controllerManager.kubeRbacProxy.args | nindent 8 }}
+      - args: 
+        - --secure-listen-address=0.0.0.0:8443
+        - --upstream=http://127.0.0.1:8080/
+        - --logtostderr=true
+        - --v=0
         env:
         - name: KUBERNETES_CLUSTER_DOMAIN
           value: {{ quote .Values.kubernetesClusterDomain }}
-        image: {{ .Values.controllerManager.kubeRbacProxy.image.repository }}:{{ .Values.controllerManager.kubeRbacProxy.image.tag
-          | default .Chart.AppVersion }}
+        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.0
         name: kube-rbac-proxy
         ports:
         - containerPort: 8443
           name: https
           protocol: TCP
-        resources: {{- toYaml .Values.controllerManager.kubeRbacProxy.resources | nindent
-          10 }}
-        securityContext: {{- toYaml .Values.controllerManager.kubeRbacProxy.containerSecurityContext
-          | nindent 10 }}
-      - args: {{- toYaml .Values.controllerManager.manager.args | nindent 8 }}
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 5m
+            memory: 64Mi
+        securityContext:
+         - allowPrivilegeEscalation: false
+           capabilities:
+             drop:
+             - ALL
+      - args: 
+        - --health-probe-bind-address=:8081
+        - --metrics-bind-address=127.0.0.1:8080
+        - --leader-elect
         command:
         - /manager
         env:
-        - name: KUBERNETES_CLUSTER_DOMAIN
-          value: {{ quote .Values.kubernetesClusterDomain }}
-        - name: HOSSTED_API_URL
-          value: {{ quote .Values.HOSSTED_API_URL }}
-        - name: HOSSTED_AUTH_TOKEN
-          value: {{ quote .Values.HOSSTED_AUTH_TOKEN }}          
-        image: {{ .Values.controllerManager.manager.image.repository }}:{{ .Values.controllerManager.manager.image.tag
-          | default .Chart.AppVersion }}
+        {{- range $key, $value :=  .Values.env }}
+          - name: {{ $key }}
+            value: {{ tpl $value $ | quote }}
+        {{- end }}  
+        image: {{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag | default .Chart.AppVersion }}
         livenessProbe:
           httpGet:
             path: /healthz
@@ -77,10 +88,13 @@ spec:
             port: 8081
           initialDelaySeconds: 5
           periodSeconds: 10
-        resources: {{- toYaml .Values.controllerManager.manager.resources | nindent 10
+        resources: {{- toYaml .Values.operator.resources | nindent 10
           }}
-        securityContext: {{- toYaml .Values.controllerManager.manager.containerSecurityContext
-          | nindent 10 }}
+        securityContext:
+         - allowPrivilegeEscalation: false
+           capabilities:
+             drop:
+             - ALL
       securityContext:
         runAsNonRoot: true
       serviceAccountName: {{ include "hossted-operator.fullname" . }}-controller-manager
