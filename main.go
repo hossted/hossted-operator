@@ -22,11 +22,10 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	// "fmt"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -107,9 +106,9 @@ func main() {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
-	// Env variable check  for API_URL and AUTH_TOKEN
-	// if os.Getenv("API_URL") == "" || os.Getenv("AUTH_TOKEN") == "" {
-	// 	setupLog.Error(fmt.Errorf("Error: Not able to find API_URL and AUTH_TOKEN environment"), " variables is not set.")
+	// Env variable check  for HOSSTED_API_URL and HOSSTED_AUTH_TOKEN
+	// if os.Getenv("HOSSTED_API_URL") == "" || os.Getenv("HOSSTED_AUTH_TOKEN") == "" {
+	// 	setupLog.Error(fmt.Errorf("Error: Not able to find HOSSTED_API_URL and HOSSTED_AUTH_TOKEN environment"), " variables is not set.")
 	// 	os.Exit(1)
 	// }
 	setupLog.Info("starting manager")

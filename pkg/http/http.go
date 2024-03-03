@@ -15,14 +15,14 @@ type Response struct {
 
 func HttpRequest(body []byte) (*Response, error) {
 	// Create a new HTTP request
-	request, err := http.NewRequest("POST", os.Getenv("API_URL"), bytes.NewBuffer(body))
+	request, err := http.NewRequest("POST", os.Getenv("HOSSTED_API_URL"), bytes.NewBuffer(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP request: %v", err)
 	}
 
 	// Set request headers
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Authorization", "Bearer "+os.Getenv("AUTH_TOKEN"))
+	request.Header.Set("Authorization", "Bearer "+os.Getenv("HOSSTED_AUTH_TOKEN"))
 
 	// Create an HTTP client with timeout
 	client := &http.Client{Timeout: 50 * time.Second}
