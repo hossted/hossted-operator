@@ -82,7 +82,6 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 	// Assuming instance.Spec.DenyNamespaces is the slice of denied namespaces
 	filteredNamespaces := filter(namespaceList, instance.Spec.DenyNamespaces)
 
-	//var reconciledHelmReleases = make(map[string]string)
 	var revisions []int
 	var helmStatusMap = make(map[string]hosstedcomv1.HelmInfo) // Use a map to store unique HelmInfo structs
 
@@ -135,10 +134,11 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 				return nil, nil, err
 			}
 
+			revisions = append(revisions, helmInfo.Revision)
+
 		}
 
 		// After collecting all HelmInfo structs for this iteration, assign to instance.Status.HelmStatus
-
 		appInfo := AppInfo{
 			HelmInfo:    helmInfo,
 			PodInfo:     podHolder,
