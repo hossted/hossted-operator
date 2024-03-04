@@ -71,12 +71,12 @@ type HelmInfo struct {
 	AppVersion string    `json:"appVersion"`
 }
 
-func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hosstedcomv1.Hosstedproject) ([]*Collector, []int, error) {
+func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hosstedcomv1.Hosstedproject) ([]*Collector, []int, []hosstedcomv1.HelmInfo, error) {
 
 	var collectors []*Collector
 	namespaceList, err := r.listNamespaces(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// Assuming instance.Spec.DenyNamespaces is the slice of denied namespaces
@@ -89,7 +89,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 
 		releases, err := r.listReleases(ctx, ns)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 
 		if len(releases) == 0 {
@@ -110,28 +110,28 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 		for _, release := range releases {
 			helmInfo, err = r.getHelmInfo(ctx, *release, instance)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			helmStatusMap[helmInfo.AppUUID] = helmInfo // Add HelmInfo to the map using AppUUID as key
 
 			podHolder, err = r.getPods(ctx, release.Namespace, release.Name)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 
 			svcHolder, err = r.getServices(ctx, release.Namespace, release.Name)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 
 			pvcHolder, err = r.getVolumes(ctx, release.Namespace, release.Name)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 
 			ingHolder, err = r.getIngress(ctx, release.Namespace, release.Name)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 
 			revisions = append(revisions, helmInfo.Revision)
@@ -166,13 +166,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 		helmStatus = append(helmStatus, helmInfo)
 	}
 
-	// Update instance status
-	instance.Status.HelmStatus = helmStatus
-	if err := r.Status().Update(ctx, instance); err != nil {
-		return []*Collector{}, nil, err
-	}
-
-	return collectors, revisions, nil
+	return collectors, revisions, helmStatus, nil
 }
 
 // listReleases retrieves all Helm releases in the specified namespace.
