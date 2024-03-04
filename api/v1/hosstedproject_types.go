@@ -36,7 +36,6 @@ type HosstedprojectStatus struct {
 }
 
 // Define HelmInfo struct
-
 type HelmInfo struct {
 	Name       string `json:"name,omitempty"`
 	Namespace  string `json:"namespace,omitempty"`

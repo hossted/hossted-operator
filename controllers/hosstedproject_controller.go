@@ -70,6 +70,7 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 			fmt.Println(string(collectorJson))
 
+			instance.Status.HelmStatus = helmStatus
 			instance.Status.ClusterUUID = uuid.NewString()
 			instance.Status.LastReconciledTimestamp = time.Now().String()
 			instance.Status.Revision = currentRevision
