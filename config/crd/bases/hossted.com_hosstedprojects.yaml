@@ -49,6 +49,27 @@ spec:
             properties:
               clusterUUID:
                 type: string
+              helmStatus:
+                items:
+                  properties:
+                    appUUID:
+                      type: string
+                    appVersion:
+                      type: string
+                    chart:
+                      type: string
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                    revision:
+                      type: integer
+                    status:
+                      type: string
+                    updated:
+                      type: string
+                  type: object
+                type: array
               lastReconcileTimestamp:
                 type: string
               reconcileHelmReleases:

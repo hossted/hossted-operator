@@ -51,33 +51,40 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	// Check if reconciliation should proceed
 	if !instance.Spec.Stop {
-		// Patch the status with ClusterUUID
-		_, _, err := r.patchStatus(ctx, instance, func(obj client.Object) client.Object {
-			in := obj.(*hosstedcomv1.Hosstedproject)
-			if in.Status.ClusterUUID == "" {
-				in.Status.ClusterUUID = uuid.NewString()
+
+		if instance.Status.ClusterUUID == "" {
+			// Collect info about resources
+			collector, currentRevision, err := r.collector(ctx, instance)
+			if err != nil {
+				return ctrl.Result{}, err
 			}
-			return in
-		})
-		if err != nil {
-			return ctrl.Result{}, err
+
+			sort.Ints(currentRevision)
+			// Marshal collectors into JSON
+			collectorJson, err := json.Marshal(collector)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			logger.Info("No Status Found, updating current state", "name", instance.Name)
+
+			fmt.Println(string(collectorJson))
+
+			_, _, err = r.patchStatus(ctx, instance, func(obj client.Object) client.Object {
+				in := obj.(*hosstedcomv1.Hosstedproject)
+				if in.Status.Revision == nil {
+					in.Status.ClusterUUID = uuid.NewString()
+					in.Status.LastReconciledTimestamp = time.Now().String()
+					in.Status.Revision = currentRevision
+				}
+				return in
+			})
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 		}
 
-		// Collect info about resources
 		collector, currentRevision, err := r.collector(ctx, instance)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-
-		sort.Ints(currentRevision)
-
-		_, _, err = r.patchStatus(ctx, instance, func(obj client.Object) client.Object {
-			in := obj.(*hosstedcomv1.Hosstedproject)
-			if in.Status.Revision == nil {
-				in.Status.Revision = currentRevision
-			}
-			return in
-		})
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -88,13 +95,14 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			fmt.Println(string(collectorJson))
-			// post request
 			logger.Info("Current state differs from last state", "name", instance.Name)
 
+			fmt.Println(string(collectorJson))
+			// post request
 			_, _, err = r.patchStatus(ctx, instance, func(obj client.Object) client.Object {
 				in := obj.(*hosstedcomv1.Hosstedproject)
 				in.Status.Revision = currentRevision
+				in.Status.LastReconciledTimestamp = time.Now().String()
 				return in
 			})
 			if err != nil {
