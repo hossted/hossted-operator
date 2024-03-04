@@ -1,5 +1,7 @@
 # Installation
 
+- Install hossted operator using helm charts.
 
-
-### Helm
+```
+helm upgrade --install operator . -n operator
+```

@@ -100,10 +100,6 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				return ctrl.Result{}, err
 			}
 
-			// if err := r.Status().Update(ctx, instance); err != nil {
-			// 	return ctrl.Result{}, err
-			// }
-
 			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 		} else {
 			return ctrl.Result{RequeueAfter: time.Second * 10}, nil

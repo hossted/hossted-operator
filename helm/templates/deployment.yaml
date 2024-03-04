@@ -70,6 +70,7 @@ spec:
             value: {{ tpl $value $ | quote }}
         {{- end }}  
         image: {{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag | default .Chart.AppVersion }}
+        imagePullPolicy: Always
         livenessProbe:
           httpGet:
             path: /healthz
