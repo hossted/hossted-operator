@@ -58,11 +58,6 @@ spec:
           requests:
             cpu: 5m
             memory: 64Mi
-        securityContext:
-         - allowPrivilegeEscalation: false
-           capabilities:
-             drop:
-             - ALL
       - args: 
         - --health-probe-bind-address=:8081
         - --metrics-bind-address=127.0.0.1:8080
@@ -90,11 +85,6 @@ spec:
           periodSeconds: 10
         resources: {{- toYaml .Values.operator.resources | nindent 10
           }}
-        securityContext:
-         - allowPrivilegeEscalation: false
-           capabilities:
-             drop:
-             - ALL
       securityContext:
         runAsNonRoot: true
       serviceAccountName: {{ include "hossted-operator.fullname" . }}-controller-manager

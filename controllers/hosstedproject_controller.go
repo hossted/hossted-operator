@@ -52,12 +52,13 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// Check if reconciliation should proceed
 	if !instance.Spec.Stop {
 
+		collector, currentRevision, helmStatus, err := r.collector(ctx, instance)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
 		if instance.Status.ClusterUUID == "" {
-			// Collect info about resources
-			collector, currentRevision, err := r.collector(ctx, instance)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
+			// Collect info about resource
 
 			sort.Ints(currentRevision)
 			// Marshal collectors into JSON
@@ -69,24 +70,15 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 			fmt.Println(string(collectorJson))
 
-			_, _, err = r.patchStatus(ctx, instance, func(obj client.Object) client.Object {
-				in := obj.(*hosstedcomv1.Hosstedproject)
-				if in.Status.Revision == nil {
-					in.Status.ClusterUUID = uuid.NewString()
-					in.Status.LastReconciledTimestamp = time.Now().String()
-					in.Status.Revision = currentRevision
-				}
-				return in
-			})
-			if err != nil {
+			instance.Status.ClusterUUID = uuid.NewString()
+			instance.Status.LastReconciledTimestamp = time.Now().String()
+			instance.Status.Revision = currentRevision
+
+			if err := r.Status().Update(ctx, instance); err != nil {
 				return ctrl.Result{}, err
 			}
-			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
-		}
 
-		collector, currentRevision, err := r.collector(ctx, instance)
-		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 		}
 
 		if !compareSlices(instance.Status.Revision, currentRevision) {
@@ -99,15 +91,19 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 			fmt.Println(string(collectorJson))
 			// post request
-			_, _, err = r.patchStatus(ctx, instance, func(obj client.Object) client.Object {
-				in := obj.(*hosstedcomv1.Hosstedproject)
-				in.Status.Revision = currentRevision
-				in.Status.LastReconciledTimestamp = time.Now().String()
-				return in
-			})
-			if err != nil {
+
+			// Update instance status
+			instance.Status.HelmStatus = helmStatus
+			instance.Status.Revision = currentRevision
+			instance.Status.LastReconciledTimestamp = time.Now().String()
+			if err := r.Status().Update(ctx, instance); err != nil {
 				return ctrl.Result{}, err
 			}
+
+			// if err := r.Status().Update(ctx, instance); err != nil {
+			// 	return ctrl.Result{}, err
+			// }
+
 			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 		} else {
 			return ctrl.Result{RequeueAfter: time.Second * 10}, nil

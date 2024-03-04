@@ -8,8 +8,7 @@ nameOverride: hossted
 
 operator:
   image:
-    repository: localhost:5001/hossted
-    tag: v4
+    repository: hossted/operator
   resources:
     limits:
       cpu: 500m
