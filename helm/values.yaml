@@ -9,6 +9,7 @@ nameOverride: hossted
 operator:
   image:
     repository: hossted/operator
+    tag: edge
   resources:
     limits:
       cpu: 500m
