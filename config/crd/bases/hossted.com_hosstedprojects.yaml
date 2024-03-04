@@ -51,6 +51,7 @@ spec:
                 type: string
               helmStatus:
                 items:
+                  description: Define HelmInfo struct
                   properties:
                     appUUID:
                       type: string
