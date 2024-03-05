@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -107,10 +108,10 @@ func main() {
 		os.Exit(1)
 	}
 	// Env variable check  for HOSSTED_API_URL and HOSSTED_AUTH_TOKEN
-	// if os.Getenv("HOSSTED_API_URL") == "" || os.Getenv("HOSSTED_AUTH_TOKEN") == "" || os.Getenv("EMAIL_ID") == "" {
-	// 	setupLog.Error(fmt.Errorf("Error: Not able to find HOSSTED_API_URL and HOSSTED_AUTH_TOKEN environment"), " variables is not set.")
-	// 	os.Exit(1)
-	// }
+	if os.Getenv("HOSSTED_API_URL") == "" || os.Getenv("HOSSTED_AUTH_TOKEN") == "" || os.Getenv("EMAIL_ID") == "" {
+		setupLog.Error(fmt.Errorf("Error: Not able to find HOSSTED_API_URL and HOSSTED_AUTH_TOKEN environment"), " variables is not set.")
+		os.Exit(1)
+	}
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
