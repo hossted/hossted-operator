@@ -49,6 +49,8 @@ spec:
             properties:
               clusterUUID:
                 type: string
+              email_id:
+                type: string
               helmStatus:
                 items:
                   description: Define HelmInfo struct

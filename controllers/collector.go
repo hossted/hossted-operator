@@ -30,6 +30,7 @@ type AppAPIInfo struct {
 	AppUUID     string `json:"app_uuid"`
 	AppName     string `json:"app_name"`
 	AllGood     int    `json:"all_good"`
+	EmailID     string `json:"email_id"`
 }
 
 // ServiceInfo contains information about a Kubernetes service.
@@ -152,11 +153,11 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 				AppName:     appInfo.HelmInfo.Name,
 				ClusterUUID: instance.Status.ClusterUUID,
 				AppUUID:     appInfo.HelmInfo.AppUUID,
+				EmailID:     instance.Status.EmailID,
 			},
 			AppInfo: appInfo,
 		}
 		collectors = append(collectors, collector)
-
 	}
 
 	sort.Ints(revisions)
