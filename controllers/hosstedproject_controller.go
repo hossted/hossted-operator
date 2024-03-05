@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 
 	"github.com/google/uuid"
@@ -61,7 +62,19 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			// Collect info about resource
 
 			sort.Ints(currentRevision)
+
+			instance.Status.HelmStatus = helmStatus
+			instance.Status.ClusterUUID = uuid.NewString()
+			instance.Status.EmailID = os.Getenv("EMAIL_ID")
+			instance.Status.LastReconciledTimestamp = time.Now().String()
+			instance.Status.Revision = currentRevision
+
+			for i, _ := range collector {
+				collector[i].AppAPIInfo.ClusterUUID = instance.Status.ClusterUUID
+				collector[i].AppAPIInfo.EmailID = instance.Status.EmailID
+			}
 			// Marshal collectors into JSON
+
 			collectorJson, err := json.Marshal(collector)
 			if err != nil {
 				return ctrl.Result{}, err
@@ -69,11 +82,6 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			logger.Info("No Status Found, updating current state", "name", instance.Name)
 
 			fmt.Println(string(collectorJson))
-
-			instance.Status.HelmStatus = helmStatus
-			instance.Status.ClusterUUID = uuid.NewString()
-			instance.Status.LastReconciledTimestamp = time.Now().String()
-			instance.Status.Revision = currentRevision
 
 			if err := r.Status().Update(ctx, instance); err != nil {
 				return ctrl.Result{}, err
