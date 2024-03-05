@@ -22,7 +22,7 @@ func HttpRequest(body []byte) (*Response, error) {
 
 	// Set request headers
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Authorization", "Bearer "+os.Getenv("HOSSTED_AUTH_TOKEN"))
+	request.Header.Set("Authorization", "Basic "+os.Getenv("HOSSTED_AUTH_TOKEN"))
 
 	// Create an HTTP client with timeout
 	client := &http.Client{Timeout: 50 * time.Second}

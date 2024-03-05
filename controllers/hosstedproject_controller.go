@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
+	internalHTTP "github.com/hossted/hossted-operator/pkg/http"
 
-	// internalhttp "github.com/hossted/hossted-operator/pkg/http"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -69,19 +69,24 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			instance.Status.LastReconciledTimestamp = time.Now().String()
 			instance.Status.Revision = currentRevision
 
-			for i, _ := range collector {
-				collector[i].AppAPIInfo.ClusterUUID = instance.Status.ClusterUUID
-				collector[i].AppAPIInfo.EmailID = instance.Status.EmailID
-			}
-			// Marshal collectors into JSON
-
-			collectorJson, err := json.Marshal(collector)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
 			logger.Info("No Status Found, updating current state", "name", instance.Name)
 
-			fmt.Println(string(collectorJson))
+			for i := range collector {
+				collector[i].AppAPIInfo.ClusterUUID = instance.Status.ClusterUUID
+				collector[i].AppAPIInfo.EmailID = instance.Status.EmailID
+
+				collectorJson, err := json.Marshal(collector[i])
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+				resp, err := internalHTTP.HttpRequest(collectorJson)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+
+				logger.Info(fmt.Sprintf("Sending req no [%d] to hossted API", i), "resp", resp.ResponseBody, "statuscode", resp.StatusCode)
+
+			}
 
 			if err := r.Status().Update(ctx, instance); err != nil {
 				return ctrl.Result{}, err
@@ -91,15 +96,20 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 
 		if !compareSlices(instance.Status.Revision, currentRevision) {
-			// Marshal collectors into JSON
-			collectorJson, err := json.Marshal(collector)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-			logger.Info("Current state differs from last state", "name", instance.Name)
+			for i := range collector {
 
-			fmt.Println(string(collectorJson))
-			// post request
+				collectorJson, err := json.Marshal(collector[i])
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+				resp, err := internalHTTP.HttpRequest(collectorJson)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+
+				logger.Info(fmt.Sprintf("Sending req no [%d] to hossted API", i), "resp", resp.ResponseBody, "statuscode", resp.StatusCode)
+
+			}
 
 			// Update instance status
 			instance.Status.HelmStatus = helmStatus
