@@ -61,6 +61,8 @@ spec:
                       type: string
                     chart:
                       type: string
+                    hossted_helm:
+                      type: boolean
                     name:
                       type: string
                     namespace:
