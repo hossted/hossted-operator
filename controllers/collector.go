@@ -325,11 +325,11 @@ func (r *HosstedProjectReconciler) getAppUUIDFromSecret(ctx context.Context, nam
 
 func isHostedHelm(release helmrelease.Release) bool {
 
-	key := "app.kubernetes.io/managed-by"
-	value := "Helm"
+	// key := "app.kubernetes.io/managed-by"
+	// value := "Helm"
 
-	// key := "hossted_helm"
-	// value := "true"
+	key := "hossted_helm"
+	value := "true"
 
 	pattern := fmt.Sprintf(`\b%s:\s*%s\b`, key, value)
 
