@@ -40,6 +40,8 @@ type HosstedProjectReconciler struct {
 func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := ctrl.Log.WithName("controllers").WithName("hosstedproject").WithName(req.Namespace)
 
+	logger.Info("Reconciling")
+
 	// Get Hosstedproject custom resource
 	instance := &hosstedcomv1.Hosstedproject{}
 	err := r.Get(ctx, req.NamespacedName, instance)
@@ -63,13 +65,39 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 			sort.Ints(currentRevision)
 
+			clusterUUID := "K-" + uuid.NewString()
 			instance.Status.HelmStatus = helmStatus
-			instance.Status.ClusterUUID = "K-" + uuid.NewString()
+			instance.Status.ClusterUUID = clusterUUID
 			instance.Status.EmailID = os.Getenv("EMAIL_ID")
 			instance.Status.LastReconciledTimestamp = time.Now().String()
 			instance.Status.Revision = currentRevision
 
-			logger.Info("No Status Found, updating current state", "name", instance.Name)
+			///////////////////////// ----------- Register ClusterUUID --------------////////////////////////
+			clusterUUIDRegPath := os.Getenv("HOSSTED_API_URL") + "/clusters/" + clusterUUID + "/register"
+
+			type clusterUUIDBody struct {
+				Email   string `json:"email"`
+				ReqType string `json:"type"`
+			}
+
+			clusterUUIDBodyReq := clusterUUIDBody{
+				Email:   instance.Status.EmailID,
+				ReqType: "k8s",
+			}
+
+			body, err := json.Marshal(clusterUUIDBodyReq)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+
+			resp, err := internalHTTP.HttpRequest(body, clusterUUIDRegPath)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+
+			logger.Info(fmt.Sprintf("Registering K8s with UUID no [%s] to hossted API", clusterUUID), "body", string(body), "resp", resp.ResponseBody, "statuscode", resp.StatusCode)
+
+			///////////////////////// ----------- ------------------- --------------////////////////////////
 
 			for i := range collector {
 				collector[i].AppAPIInfo.ClusterUUID = instance.Status.ClusterUUID
@@ -80,7 +108,9 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 					return ctrl.Result{}, err
 				}
 
-				resp, err := internalHTTP.HttpRequest(collectorJson)
+				appUUIDRegPath := os.Getenv("HOSSTED_API_URL") + "/apps/" + collector[i].AppAPIInfo.AppUUID + "/register"
+
+				resp, err := internalHTTP.HttpRequest(collectorJson, appUUIDRegPath)
 				if err != nil {
 					return ctrl.Result{}, err
 				}
@@ -104,7 +134,9 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 					return ctrl.Result{}, err
 				}
 
-				resp, err := internalHTTP.HttpRequest(collectorJson)
+				appUUIDRegPath := os.Getenv("HOSSTED_API_URL") + "/apps/" + collector[i].AppAPIInfo.AppUUID + "/register"
+
+				resp, err := internalHTTP.HttpRequest(collectorJson, appUUIDRegPath)
 				if err != nil {
 					return ctrl.Result{}, err
 				}
@@ -123,6 +155,7 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 		} else {
+			logger.Info("Not State change detected, requeueing")
 			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 		}
 
