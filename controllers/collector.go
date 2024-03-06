@@ -106,18 +106,17 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 				return nil, nil, nil, err
 			}
 
-			helmInfo.HosstedHelm = false
-
+			// helmInfo.HosstedHelm = false
 			if isHostedHelm(*release) {
 				appUUID, err := r.getAppUUIDFromSecret(ctx, release.Namespace)
 				if apierrors.IsNotFound(err) {
 					helmStatusMap[helmInfo.AppUUID] = helmInfo
 				} else {
 					helmInfo.AppUUID = "A-" + appUUID
-					helmStatusMap[appUUID] = helmInfo
 					helmInfo.HosstedHelm = true
-				}
+					helmStatusMap[helmInfo.AppUUID] = helmInfo
 
+				}
 			}
 
 			podHolder, err = r.getPods(ctx, release.Namespace, release.Name)
@@ -172,7 +171,6 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 	for _, helmInfo := range helmStatusMap {
 		helmStatus = append(helmStatus, helmInfo)
 	}
-
 	return collectors, revisions, helmStatus, nil
 }
 
