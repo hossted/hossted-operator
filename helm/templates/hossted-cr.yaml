@@ -1,0 +1,16 @@
+apiVersion: hossted.com/v1
+kind: Hosstedproject
+metadata:
+  labels:
+    app.kubernetes.io/component: hosstedproject-cr
+  {{- include "hossted-operator.labels" . | nindent 4 }}    
+  name: {{ include "hossted-operator.fullname" . }}-cr
+  annotations:
+    "helm.sh/hook": post-install
+spec:
+  stop: false
+  denyNamespaces: 
+  - kube-system
+  - local-path-storage
+  - kube-node-lease
+  - kube-public
