@@ -112,6 +112,7 @@ func main() {
 		setupLog.Error(fmt.Errorf("Error: Not able to find HOSSTED_API_URL and HOSSTED_AUTH_TOKEN environment"), " variables is not set.")
 		os.Exit(1)
 	}
+
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")

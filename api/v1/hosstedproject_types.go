@@ -38,14 +38,15 @@ type HosstedprojectStatus struct {
 
 // Define HelmInfo struct
 type HelmInfo struct {
-	Name       string `json:"name,omitempty"`
-	Namespace  string `json:"namespace,omitempty"`
-	AppUUID    string `json:"appUUID,omitempty"`
-	Revision   int    `json:"revision,omitempty"`
-	Updated    string `json:"updated,omitempty"`
-	Status     string `json:"status,omitempty"`
-	Chart      string `json:"chart,omitempty"`
-	AppVersion string `json:"appVersion,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Namespace   string `json:"namespace,omitempty"`
+	AppUUID     string `json:"appUUID,omitempty"`
+	Revision    int    `json:"revision,omitempty"`
+	Updated     string `json:"updated,omitempty"`
+	Status      string `json:"status,omitempty"`
+	Chart       string `json:"chart,omitempty"`
+	AppVersion  string `json:"appVersion,omitempty"`
+	HosstedHelm bool   `json:"hossted_helm,omitempty"`
 }
 
 // +kubebuilder:object:root=true

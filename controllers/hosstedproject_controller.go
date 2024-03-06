@@ -7,11 +7,11 @@ import (
 	"os"
 	"sort"
 
+	"time"
+
 	"github.com/google/uuid"
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
 	internalHTTP "github.com/hossted/hossted-operator/pkg/http"
-
-	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,7 +38,7 @@ type HosstedProjectReconciler struct {
 
 // Reconcile reconciles the Hosstedproject custom resource.
 func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := ctrl.Log.WithName("controllers").WithName("hosstedproject")
+	logger := ctrl.Log.WithName("controllers").WithName("hosstedproject").WithName(req.Namespace)
 
 	// Get Hosstedproject custom resource
 	instance := &hosstedcomv1.Hosstedproject{}
@@ -64,7 +64,7 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			sort.Ints(currentRevision)
 
 			instance.Status.HelmStatus = helmStatus
-			instance.Status.ClusterUUID = uuid.NewString()
+			instance.Status.ClusterUUID = "K-" + uuid.NewString()
 			instance.Status.EmailID = os.Getenv("EMAIL_ID")
 			instance.Status.LastReconciledTimestamp = time.Now().String()
 			instance.Status.Revision = currentRevision
@@ -73,12 +73,13 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 			for i := range collector {
 				collector[i].AppAPIInfo.ClusterUUID = instance.Status.ClusterUUID
-				collector[i].AppAPIInfo.EmailID = instance.Status.EmailID
+				//collector[i].AppAPIInfo.EmailID = instance.Status.EmailID
 
 				collectorJson, err := json.Marshal(collector[i])
 				if err != nil {
 					return ctrl.Result{}, err
 				}
+
 				resp, err := internalHTTP.HttpRequest(collectorJson)
 				if err != nil {
 					return ctrl.Result{}, err
@@ -102,6 +103,7 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				if err != nil {
 					return ctrl.Result{}, err
 				}
+
 				resp, err := internalHTTP.HttpRequest(collectorJson)
 				if err != nil {
 					return ctrl.Result{}, err

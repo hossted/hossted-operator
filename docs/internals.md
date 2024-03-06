@@ -99,10 +99,11 @@ The `collector` function collects information about Helm releases, pods, service
 [
     {
         "app_api_info": {
-            "cluster_uuid": "",
-            "app_uuid": "",
+            "cluster_uuid": "1111-1111-1111-1111",
+            "app_uuid": "2222-2222-2222-2222",
             "app_name": "test",
-            "all_good": 0
+            "email_id": "adheip@gmail.com",
+            "hossted_helm": true
         },
         "app_info": {
             "helm_info": {

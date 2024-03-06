@@ -2,13 +2,15 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"regexp"
 	"sort"
-	"time"
 
 	"github.com/google/uuid"
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
 	helm "github.com/hossted/hossted-operator/pkg/helm"
 	helmrelease "helm.sh/helm/v3/pkg/release"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 type Collector struct {
@@ -29,8 +31,8 @@ type AppAPIInfo struct {
 	ClusterUUID string `json:"cluster_uuid"`
 	AppUUID     string `json:"app_uuid"`
 	AppName     string `json:"app_name"`
-	AllGood     int    `json:"all_good"`
-	EmailID     string `json:"email_id"`
+	Type        string `json:"type"`
+	HosstedHelm bool   `json:"hossted_helm"`
 }
 
 // ServiceInfo contains information about a Kubernetes service.
@@ -60,18 +62,6 @@ type VolumeInfo struct {
 	Size      int    `json:"size"`
 }
 
-// HelmInfo contains information about a Helm release.
-type HelmInfo struct {
-	Name       string    `json:"name"`
-	Namespace  string    `json:"namespace"`
-	AppUUID    string    `json:"appUUID"`
-	Revision   int       `json:"revision"`
-	Updated    time.Time `json:"updated"`
-	Status     string    `json:"status"`
-	Chart      string    `json:"chart"`
-	AppVersion string    `json:"appVersion"`
-}
-
 func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hosstedcomv1.Hosstedproject) ([]*Collector, []int, []hosstedcomv1.HelmInfo, error) {
 
 	var collectors []*Collector
@@ -84,6 +74,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 	filteredNamespaces := filter(namespaceList, instance.Spec.DenyNamespaces)
 
 	var revisions []int
+
 	var helmStatusMap = make(map[string]hosstedcomv1.HelmInfo) // Use a map to store unique HelmInfo structs
 
 	for _, ns := range filteredNamespaces {
@@ -109,11 +100,25 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 		)
 
 		for _, release := range releases {
+
 			helmInfo, err = r.getHelmInfo(ctx, *release, instance)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			helmStatusMap[helmInfo.AppUUID] = helmInfo // Add HelmInfo to the map using AppUUID as key
+
+			helmInfo.HosstedHelm = false
+
+			if isHostedHelm(*release) {
+				appUUID, err := r.getAppUUIDFromSecret(ctx, release.Namespace)
+				if apierrors.IsNotFound(err) {
+					helmStatusMap[helmInfo.AppUUID] = helmInfo
+				} else {
+					helmInfo.AppUUID = "A-" + appUUID
+					helmStatusMap[appUUID] = helmInfo
+					helmInfo.HosstedHelm = true
+				}
+
+			}
 
 			podHolder, err = r.getPods(ctx, release.Namespace, release.Name)
 			if err != nil {
@@ -153,7 +158,8 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 				AppName:     appInfo.HelmInfo.Name,
 				ClusterUUID: instance.Status.ClusterUUID,
 				AppUUID:     appInfo.HelmInfo.AppUUID,
-				EmailID:     instance.Status.EmailID,
+				Type:        "k8s",
+				HosstedHelm: appInfo.HelmInfo.HosstedHelm,
 			},
 			AppInfo: appInfo,
 		}
@@ -288,7 +294,7 @@ func (r *HosstedProjectReconciler) getHelmInfo(ctx context.Context, release helm
 	return hosstedcomv1.HelmInfo{
 		Name:       release.Name,
 		Namespace:  release.Namespace,
-		AppUUID:    uuid.NewString(),
+		AppUUID:    "A-" + uuid.NewString(),
 		Revision:   release.Version,
 		Updated:    release.Info.LastDeployed.Time.String(),
 		Status:     string(release.Info.Status),
@@ -305,4 +311,32 @@ func findExistingUUID(helmStatus []hosstedcomv1.HelmInfo, releaseName, namespace
 		}
 	}
 	return ""
+}
+
+func (r *HosstedProjectReconciler) getAppUUIDFromSecret(ctx context.Context, namespace string) (string, error) {
+
+	secret, err := r.getSecret(ctx, "uuid", namespace)
+	if err != nil {
+		return "", err
+	}
+
+	return string(secret.Data["uuid"]), nil
+}
+
+func isHostedHelm(release helmrelease.Release) bool {
+
+	key := "app.kubernetes.io/managed-by"
+	value := "Helm"
+
+	// key := "hossted_helm"
+	// value := "true"
+
+	pattern := fmt.Sprintf(`\b%s:\s*%s\b`, key, value)
+
+	re := regexp.MustCompile(pattern)
+	if re.MatchString(release.Manifest) {
+		return true
+	} else {
+		return false
+	}
 }
