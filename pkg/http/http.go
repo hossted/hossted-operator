@@ -13,9 +13,9 @@ type Response struct {
 	ResponseBody string
 }
 
-func HttpRequest(body []byte) (*Response, error) {
+func HttpRequest(body []byte, path string) (*Response, error) {
 	// Create a new HTTP request
-	request, err := http.NewRequest("POST", os.Getenv("HOSSTED_API_URL"), bytes.NewBuffer(body))
+	request, err := http.NewRequest("POST", path, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP request: %v", err)
 	}

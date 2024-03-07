@@ -115,7 +115,6 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 					helmInfo.AppUUID = "A-" + appUUID
 					helmInfo.HosstedHelm = true
 					helmStatusMap[helmInfo.AppUUID] = helmInfo
-
 				}
 			}
 
@@ -171,6 +170,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 	for _, helmInfo := range helmStatusMap {
 		helmStatus = append(helmStatus, helmInfo)
 	}
+
 	return collectors, revisions, helmStatus, nil
 }
 
@@ -323,11 +323,11 @@ func (r *HosstedProjectReconciler) getAppUUIDFromSecret(ctx context.Context, nam
 
 func isHostedHelm(release helmrelease.Release) bool {
 
-	// key := "app.kubernetes.io/managed-by"
-	// value := "Helm"
+	key := "app.kubernetes.io/managed-by"
+	value := "Helm"
 
-	key := "hossted_helm"
-	value := "true"
+	// key := "hossted_helm"
+	// value := "true"
 
 	pattern := fmt.Sprintf(`\b%s:\s*%s\b`, key, value)
 
