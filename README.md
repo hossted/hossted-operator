@@ -17,3 +17,6 @@
 
 - The operator supports CR's of type ```HosstedProject```.
 - ```HosstedProject``` CR belongs to api Group ```hossted.com``` and version ```v1```
+
+### Quick start
+```helm upgrade --install hossted-operator . -n hossted-operator --set env.HOSSTED_API_URL="<>",env.HOSSTED_AUTH_TOKEN="<>",env.EMAIL_ID="<>" ```
