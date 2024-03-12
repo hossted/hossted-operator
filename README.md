@@ -19,4 +19,15 @@
 - ```HosstedProject``` CR belongs to api Group ```hossted.com``` and version ```v1```
 
 ### Quick start
-```helm upgrade --install hossted-operator . -n hossted-operator --set env.HOSSTED_API_URL="<>",env.HOSSTED_AUTH_TOKEN="<>",env.EMAIL_ID="<>" ```
+- Add Hossted Helm Repo
+```
+helm repo add hossted https://charts.hossted.com
+```
+- Search operator versions
+```
+helm search repo hossted --versions
+```
+- Install Operator
+```
+helm upgrade --install hossted-operator hossted/hossted-operator -n hossted-operator --set env.HOSSTED_API_URL="<>",env.HOSSTED_AUTH_TOKEN="<>",env.EMAIL_ID="<>"
+ ```
