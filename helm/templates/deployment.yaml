@@ -69,7 +69,7 @@ spec:
           - name: {{ $key }}
             value: {{ tpl $value $ | quote }}
         {{- end }}  
-        image: {{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag | default .Chart.AppVersion }}
+        image: {{ .Values.operator.image.repository }}:{{ .Chart.AppVersion }}
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
