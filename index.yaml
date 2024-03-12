@@ -3,12 +3,12 @@ entries:
   hossted-operator:
   - apiVersion: v2
     appVersion: edge
-    created: "2024-03-12T16:45:42.370287+05:30"
+    created: "2024-03-12T16:55:39.862358+05:30"
     description: A Helm chart for Kubernetes
     digest: 0e4705f0607f9542e2083820b0ee831e18de79c4b25a51e8a8b8fbdc1cdbaca3
     name: hossted-operator
     type: application
     urls:
-    - https://github.com/hossted/hossted-operator/helm-releases/hossted-operator-0.1.0.tgz
+    - https://charts.hossted.com/helm-releases/hossted-operator-0.1.0.tgz
     version: 0.1.0
-generated: "2024-03-12T16:45:42.369061+05:30"
+generated: "2024-03-12T16:55:39.860401+05:30"
