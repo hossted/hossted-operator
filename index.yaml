@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  hossted-operator:
+  - apiVersion: v2
+    appVersion: 0.0.1.beta.2
+    created: "2024-03-12T22:37:31.153775+05:30"
+    description: A Helm chart for Kubernetes
+    digest: fe907fb15b810d247fafe28a38f65fa52f5344c606fc2e850a03eb35bc3b91dc
+    name: hossted-operator
+    type: application
+    urls:
+    - https://charts.hossted.com/helm-releases/hossted-operator-0.0.1.tgz
+    version: 0.0.1
+generated: "2024-03-12T22:37:31.153252+05:30"
