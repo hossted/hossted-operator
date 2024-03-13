@@ -12,8 +12,8 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
+	helm "github.com/hossted/hossted-operator/pkg/helm"
 	internalHTTP "github.com/hossted/hossted-operator/pkg/http"
-
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -73,6 +73,7 @@ func (r *HosstedProjectReconciler) handleReconciliation(ctx context.Context, ins
 	}
 
 	return r.handleExistingCluster(ctx, instance, collector, currentRevision, helmStatus, logger)
+
 }
 
 // handleNewCluster handles reconciliation when a new cluster is created.
@@ -122,6 +123,10 @@ func (r *HosstedProjectReconciler) handleExistingCluster(ctx context.Context, in
 		}
 
 		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+	}
+	err := r.handleMonitoring(ctx, instance, logger)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	logger.Info("No state change detected, requeueing")
@@ -176,6 +181,44 @@ func (r *HosstedProjectReconciler) registerClusterUUID(ctx context.Context, inst
 
 	logger.Info(fmt.Sprintf("Registering K8s with UUID no [%s] to hossted API", clusterUUID), "body", string(body), "resp", resp.ResponseBody, "statuscode", resp.StatusCode)
 
+	return nil
+}
+
+// enable monitoring using grafana-agent.
+func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instance *hosstedcomv1.Hosstedproject, logger logr.Logger) error {
+	// Helm configuration for Grafana Agent
+	h := helm.Helm{
+		ChartName: "grafana-agent",
+		RepoName:  "grafana",
+		RepoUrl:   "https://grafana.github.io/helm-charts",
+		Namespace: "grafana-agent",
+	}
+
+	// Check if monitoring is enabled
+	if instance.Spec.Monitoring.Enable {
+		// Check if Grafana Agent release already exists
+		err := helm.ListRelease(h.ChartName, h.Namespace)
+		if err == nil {
+			return nil
+		}
+
+		// Install Grafana Agent
+		err = helm.Apply(h)
+		if err != nil {
+			return fmt.Errorf("enabling grafana-agent for monitoring failed %w", err)
+		}
+		return nil
+
+	}
+	// If monitoring is not enabled, check if Grafana Agent release exists
+	err := helm.ListRelease(h.ChartName, h.Namespace)
+	if err == nil {
+		// Delete Grafana Agent release if it exists
+		err_del := helm.DeleteRelease(h.ChartName, h.Namespace)
+		if err_del != nil {
+			return fmt.Errorf("grafana Agent deletion failed %w", err_del)
+		}
+	}
 	return nil
 }
 

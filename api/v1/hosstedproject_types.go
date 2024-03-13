@@ -22,8 +22,13 @@ import (
 
 // HosstedprojectSpec defines the desired state of Hosstedproject
 type HosstedprojectSpec struct {
-	Stop           bool     `json:"stop,omitempty"`
-	DenyNamespaces []string `json:"denyNamespaces,omitempty"`
+	Stop           bool       `json:"stop,omitempty"`
+	Monitoring     Monitoring `json:"monitoring,omitempty"`
+	DenyNamespaces []string   `json:"denyNamespaces,omitempty"`
+}
+
+type Monitoring struct {
+	Enable bool `json:"enable,omitempty"`
 }
 
 // HosstedprojectStatus defines the observed state of Hosstedproject
