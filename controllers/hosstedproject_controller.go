@@ -188,9 +188,9 @@ func (r *HosstedProjectReconciler) registerClusterUUID(ctx context.Context, inst
 func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instance *hosstedcomv1.Hosstedproject, logger logr.Logger) error {
 	// Helm configuration for Grafana Agent
 	h := helm.Helm{
-		ChartName: "grafana-agent",
+		ChartName: "hossted-grafana-agent",
 		RepoName:  "grafana",
-		RepoUrl:   "https://grafana.github.io/helm-charts",
+		RepoUrl:   "https://charts.hossted.com",
 		Namespace: "grafana-agent",
 	}
 
