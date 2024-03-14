@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
-
+	//trivy "github.com/aquasecurity/trivy-operator/pkg/apis/aquasecurity/v1alpha1"
 	"github.com/google/uuid"
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
 	helm "github.com/hossted/hossted-operator/pkg/helm"
@@ -24,6 +24,7 @@ type AppInfo struct {
 	ServiceInfo []ServiceInfo         `json:"service_info"`
 	VolumeInfo  []VolumeInfo          `json:"volume_info"`
 	IngressInfo []IngressInfo         `json:"ingress_info"`
+	// SecurityInfo []SecurityInfo        `json:"security_info"`
 }
 
 // AppAPIInfo contains basic information about the application API.
@@ -62,8 +63,50 @@ type VolumeInfo struct {
 	Size      int    `json:"size"`
 }
 
-func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hosstedcomv1.Hosstedproject) ([]*Collector, []int, []hosstedcomv1.HelmInfo, error) {
+type SecurityInfo struct {
+	PodName      string                  `json:"pod_name"`
+	PodNamespace string                  `json:"pod_namespace"`
+	Containers   []SecurityInfoContainer `json:"containers"`
+}
 
+type SecurityInfoContainer struct {
+	ContainerImage       string               `json:"container_image"`
+	Type                 string               `json:"type"`
+	VulnerabilitySummary VulnerabilitySummary `json:"summary"`
+	Vulnerabilities      []Vulnerability      `json:"vulnerabilities"`
+}
+
+type VulnerabilitySummary struct {
+	CriticalCount int `json:"criticalCount"`
+	HighCount     int `json:"highCount"`
+	MediumCount   int `json:"mediumCount"`
+	LowCount      int `json:"lowCount"`
+	UnknownCount  int `json:"unknownCount"`
+	NoneCount     int `json:"noneCount"`
+}
+
+type Vulnerability struct {
+	VulnerabilityID  string   `json:"vulnerabilityID"`
+	Resource         string   `json:"resource"`
+	InstalledVersion string   `json:"installedVersion"`
+	FixedVersion     string   `json:"fixedVersion"`
+	PublishedDate    string   `json:"publishedDate"`
+	LastModifiedDate string   `json:"lastModifiedDate"`
+	Severity         string   `json:"severity"`
+	Title            string   `json:"title"`
+	Description      string   `json:"description,omitempty"`
+	CVSSSource       string   `json:"cvsssource,omitempty"`
+	PrimaryLink      string   `json:"primaryLink,omitempty"`
+	Links            []string `json:"links"`
+	Score            float64  `json:"score,omitempty"`
+	Target           string   `json:"target"`
+	CVSS             string   `json:"cvss,omitempty"`
+	Class            string   `json:"class,omitempty"`
+	PackageType      string   `json:"packageType,omitempty"`
+	PkgPath          string   `json:"packagePath,omitempty"`
+}
+
+func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hosstedcomv1.Hosstedproject) ([]*Collector, []int, []hosstedcomv1.HelmInfo, error) {
 	var collectors []*Collector
 	namespaceList, err := r.listNamespaces(ctx)
 	if err != nil {
@@ -234,7 +277,6 @@ func (r *HosstedProjectReconciler) getVolumes(ctx context.Context, namespace, re
 	if err != nil {
 		return nil, err
 	}
-
 	var pvcHolder []VolumeInfo
 	for _, pvc := range pvcs.Items {
 		pvcInfo := VolumeInfo{
