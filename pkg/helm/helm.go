@@ -61,7 +61,6 @@ func Apply(h Helm) error {
 	// Setting Namespace
 	settings.SetNamespace(h.Namespace)
 	settings.EnvVars()
-
 	// Add repository
 	repoAdd(h)
 
@@ -144,17 +143,26 @@ func repoAdd(h Helm) error {
 		return err
 	}
 
-	// Check if the repository is already added
-	if f.Has(h.RepoName) {
-		return nil
-	}
-
 	// Create a new repository entry
 	c := repo.Entry{
 		Name: h.RepoName,
 		URL:  h.RepoUrl,
 	}
 
+	// Check if the repository is already added, update it
+	if f.Has(h.RepoName) {
+		r, err := repo.NewChartRepository(&c, getter.All(settings))
+		if err != nil {
+			return err
+		}
+
+		// Download the index file to update helm repo
+		if _, err := r.DownloadIndexFile(); err != nil {
+			err := errors.Wrapf(err, "looks like we are unable to update helm repo %q", h.RepoUrl)
+			return err
+		} 
+		return nil
+	}
 	// Create a new chart repository
 	r, err := repo.NewChartRepository(&c, getter.All(settings))
 	if err != nil {
