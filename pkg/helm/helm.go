@@ -160,7 +160,7 @@ func repoAdd(h Helm) error {
 		if _, err := r.DownloadIndexFile(); err != nil {
 			err := errors.Wrapf(err, "looks like we are unable to update helm repo %q", h.RepoUrl)
 			return err
-		} 
+		}
 		return nil
 	}
 	// Create a new chart repository
@@ -220,7 +220,8 @@ func ListRelease(chartName, namespace string) error {
 // DeleteRelease deletes a Helm release based on the specified chart name and namespace.
 func DeleteRelease(chartName, namespace string) error {
 	settings := cli.New()
-
+	settings.SetNamespace(namespace)
+	settings.EnvVars()
 	// Initialize action configuration
 	actionConfig := new(action.Configuration)
 	if err := actionConfig.Init(settings.RESTClientGetter(), namespace, os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
