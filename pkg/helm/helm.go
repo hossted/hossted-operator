@@ -20,7 +20,6 @@ import (
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Helm struct {
@@ -231,7 +230,6 @@ func DeleteRelease(chartName, namespace string) error {
 
 	// Create a new Uninstall action
 	client := action.NewUninstall(actionConfig)
-	client.DeletionPropagation = string(v1.DeletePropagationBackground)
 	// Run the Uninstall action to delete the release
 	_, err := client.Run(chartName)
 	if err != nil {
