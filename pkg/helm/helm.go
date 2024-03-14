@@ -3,6 +3,13 @@ package helm
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
 	"github.com/gofrs/flock"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -13,12 +20,7 @@ import (
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
-	"io/ioutil"
-	"log"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Helm struct {
@@ -160,7 +162,7 @@ func repoAdd(h Helm) error {
 		if _, err := r.DownloadIndexFile(); err != nil {
 			err := errors.Wrapf(err, "looks like we are unable to update helm repo %q", h.RepoUrl)
 			return err
-		} 
+		}
 		return nil
 	}
 	// Create a new chart repository
@@ -187,13 +189,13 @@ func repoAdd(h Helm) error {
 
 // ListRelease lists Helm releases based on the specified chart name and namespace.
 // It returns an error if any operation fails, otherwise, it returns nil.
-func ListRelease(chartName, namespace string) error {
+func ListRelease(chartName, namespace string) (bool, error) {
 	settings := cli.New()
 
 	// Initialize action configuration
 	actionConfig := new(action.Configuration)
 	if err := actionConfig.Init(settings.RESTClientGetter(), namespace, os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
-		return err
+		return false, err
 	}
 
 	// Create a new List action
@@ -202,19 +204,19 @@ func ListRelease(chartName, namespace string) error {
 	// Run the List action to get releases
 	releases, err := client.Run()
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	// Iterate over the releases
 	for _, release := range releases {
 		// Check if the release's chart name matches the specified chart name
 		if release.Chart.Name() == chartName {
-			return nil
+			return true, nil
 		}
 	}
 
 	// If no release with the specified chart name is found, return an error
-	return fmt.Errorf("Release Not found")
+	return false, nil
 }
 
 // DeleteRelease deletes a Helm release based on the specified chart name and namespace.
@@ -229,7 +231,7 @@ func DeleteRelease(chartName, namespace string) error {
 
 	// Create a new Uninstall action
 	client := action.NewUninstall(actionConfig)
-
+	client.DeletionPropagation = string(v1.DeletePropagationBackground)
 	// Run the Uninstall action to delete the release
 	_, err := client.Run(chartName)
 	if err != nil {
