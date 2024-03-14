@@ -9,6 +9,8 @@ metadata:
     "helm.sh/hook": post-install
 spec:
   stop: false
+  monitoring:
+    enable: false
   denyNamespaces: 
   - kube-system
   - local-path-storage

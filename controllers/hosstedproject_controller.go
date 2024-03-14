@@ -14,7 +14,9 @@ import (
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
 	helm "github.com/hossted/hossted-operator/pkg/helm"
 	internalHTTP "github.com/hossted/hossted-operator/pkg/http"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -197,26 +199,42 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 	// Check if monitoring is enabled
 	if instance.Spec.Monitoring.Enable {
 		// Check if Grafana Agent release already exists
-		err := helm.ListRelease(h.ChartName, h.Namespace)
-		if err == nil {
+		ok, err := helm.ListRelease(h.ChartName, h.Namespace)
+		if err != nil {
+			return err
+		}
+
+		if !ok {
+			// Install Grafana Agent
+			err = helm.Apply(h)
+			if err != nil {
+				return fmt.Errorf("enabling grafana-agent for monitoring failed %w", err)
+			}
 			return nil
 		}
 
-		// Install Grafana Agent
-		err = helm.Apply(h)
+	} else {
+		// If monitoring is not enabled, check if Grafana Agent release exists
+		ok, err := helm.ListRelease(h.ChartName, h.Namespace)
 		if err != nil {
-			return fmt.Errorf("enabling grafana-agent for monitoring failed %w", err)
+			return err
 		}
-		return nil
+		if ok {
+			// Delete Grafana Agent release if it exists
+			err_del := helm.DeleteRelease(h.ChartName, h.Namespace)
+			if err_del != nil {
+				return fmt.Errorf("grafana Agent deletion failed %w", err_del)
+			}
 
-	}
-	// If monitoring is not enabled, check if Grafana Agent release exists
-	err := helm.ListRelease(h.ChartName, h.Namespace)
-	if err == nil {
-		// Delete Grafana Agent release if it exists
-		err_del := helm.DeleteRelease(h.ChartName, h.Namespace)
-		if err_del != nil {
-			return fmt.Errorf("grafana Agent deletion failed %w", err_del)
+			err := r.Client.Delete(ctx, &appsv1.DaemonSet{
+				ObjectMeta: v1.ObjectMeta{
+					Name:      h.ChartName,
+					Namespace: h.Namespace,
+				},
+			})
+			if err != nil {
+				return fmt.Errorf("failed to delete DaemonSet: %w", err)
+			}
 		}
 	}
 	return nil

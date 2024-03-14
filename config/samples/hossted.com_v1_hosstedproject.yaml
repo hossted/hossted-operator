@@ -11,7 +11,7 @@ metadata:
 spec:
   stop: false
   monitoring:
-    enable: true 
+    enable: false 
   denyNamespaces: 
   - kube-system
   - local-path-storage
