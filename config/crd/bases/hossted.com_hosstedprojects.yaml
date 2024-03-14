@@ -41,6 +41,11 @@ spec:
                 items:
                   type: string
                 type: array
+              monitoring:
+                properties:
+                  enable:
+                    type: boolean
+                type: object
               stop:
                 type: boolean
             type: object

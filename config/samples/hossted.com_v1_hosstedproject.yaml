@@ -10,6 +10,8 @@ metadata:
   name: hosstedproject-sample
 spec:
   stop: false
+  monitoring:
+    enable: true 
   denyNamespaces: 
   - kube-system
   - local-path-storage
