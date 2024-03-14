@@ -18,8 +18,9 @@ Create kind cluster on your machine.
 
 - Export the following env var's
 ```
-export API_URL=""
-export AUTH_TOKEN=""
+export HOSSTED_API_URL=""
+export HOSSTED_AUTH_TOKEN=""
+export EMAIL_ID=""
 ```
 
 - Install CRD's on K8s Cluster.
