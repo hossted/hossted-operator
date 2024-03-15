@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
-	//trivy "github.com/aquasecurity/trivy-operator/pkg/apis/aquasecurity/v1alpha1"
+
+	trivy "github.com/aquasecurity/trivy-operator/pkg/apis/aquasecurity/v1alpha1"
 	"github.com/google/uuid"
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
 	helm "github.com/hossted/hossted-operator/pkg/helm"
@@ -19,12 +20,12 @@ type Collector struct {
 }
 
 type AppInfo struct {
-	HelmInfo    hosstedcomv1.HelmInfo `json:"helm_info"`
-	PodInfo     []PodInfo             `json:"pod_info"`
-	ServiceInfo []ServiceInfo         `json:"service_info"`
-	VolumeInfo  []VolumeInfo          `json:"volume_info"`
-	IngressInfo []IngressInfo         `json:"ingress_info"`
-	// SecurityInfo []SecurityInfo        `json:"security_info"`
+	HelmInfo     hosstedcomv1.HelmInfo `json:"helm_info"`
+	PodInfo      []PodInfo             `json:"pod_info"`
+	ServiceInfo  []ServiceInfo         `json:"service_info"`
+	VolumeInfo   []VolumeInfo          `json:"volume_info"`
+	IngressInfo  []IngressInfo         `json:"ingress_info"`
+	SecurityInfo []SecurityInfo        `json:"security_info"`
 }
 
 // AppAPIInfo contains basic information about the application API.
@@ -70,40 +71,10 @@ type SecurityInfo struct {
 }
 
 type SecurityInfoContainer struct {
-	ContainerImage       string               `json:"container_image"`
-	Type                 string               `json:"type"`
-	VulnerabilitySummary VulnerabilitySummary `json:"summary"`
-	Vulnerabilities      []Vulnerability      `json:"vulnerabilities"`
-}
-
-type VulnerabilitySummary struct {
-	CriticalCount int `json:"criticalCount"`
-	HighCount     int `json:"highCount"`
-	MediumCount   int `json:"mediumCount"`
-	LowCount      int `json:"lowCount"`
-	UnknownCount  int `json:"unknownCount"`
-	NoneCount     int `json:"noneCount"`
-}
-
-type Vulnerability struct {
-	VulnerabilityID  string   `json:"vulnerabilityID"`
-	Resource         string   `json:"resource"`
-	InstalledVersion string   `json:"installedVersion"`
-	FixedVersion     string   `json:"fixedVersion"`
-	PublishedDate    string   `json:"publishedDate"`
-	LastModifiedDate string   `json:"lastModifiedDate"`
-	Severity         string   `json:"severity"`
-	Title            string   `json:"title"`
-	Description      string   `json:"description,omitempty"`
-	CVSSSource       string   `json:"cvsssource,omitempty"`
-	PrimaryLink      string   `json:"primaryLink,omitempty"`
-	Links            []string `json:"links"`
-	Score            float64  `json:"score,omitempty"`
-	Target           string   `json:"target"`
-	CVSS             string   `json:"cvss,omitempty"`
-	Class            string   `json:"class,omitempty"`
-	PackageType      string   `json:"packageType,omitempty"`
-	PkgPath          string   `json:"packagePath,omitempty"`
+	ContainerImage       string                     `json:"container_image"`
+	Type                 string                     `json:"type"`
+	VulnerabilitySummary trivy.VulnerabilitySummary `json:"summary"`
+	Vulnerabilities      []trivy.Vulnerability      `json:"vulnerabilities"`
 }
 
 func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hosstedcomv1.Hosstedproject) ([]*Collector, []int, []hosstedcomv1.HelmInfo, error) {
@@ -135,11 +106,12 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 		// Initialize a slice to collect HelmInfo structs for this iteration
 
 		var (
-			helmInfo  hosstedcomv1.HelmInfo
-			podHolder []PodInfo
-			svcHolder []ServiceInfo
-			pvcHolder []VolumeInfo
-			ingHolder []IngressInfo
+			helmInfo       hosstedcomv1.HelmInfo
+			podHolder      []PodInfo
+			svcHolder      []ServiceInfo
+			pvcHolder      []VolumeInfo
+			ingHolder      []IngressInfo
+			securityHolder []SecurityInfo
 		)
 
 		for _, release := range releases {
@@ -161,7 +133,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 				}
 			}
 
-			podHolder, err = r.getPods(ctx, release.Namespace, release.Name)
+			podHolder, securityHolder, err = r.getPods(ctx, release.Namespace, release.Name)
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -187,11 +159,12 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 
 		// After collecting all HelmInfo structs for this iteration, assign to instance.Status.HelmStatus
 		appInfo := AppInfo{
-			HelmInfo:    helmInfo,
-			PodInfo:     podHolder,
-			ServiceInfo: svcHolder,
-			VolumeInfo:  pvcHolder,
-			IngressInfo: ingHolder,
+			HelmInfo:     helmInfo,
+			PodInfo:      podHolder,
+			ServiceInfo:  svcHolder,
+			VolumeInfo:   pvcHolder,
+			IngressInfo:  ingHolder,
+			SecurityInfo: securityHolder,
 		}
 
 		collector := &Collector{
@@ -223,16 +196,23 @@ func (r *HosstedProjectReconciler) listReleases(ctx context.Context, namespace s
 }
 
 // getPods retrieves pods for a given release in the specified namespace.
-func (r *HosstedProjectReconciler) getPods(ctx context.Context, namespace, releaseName string) ([]PodInfo, error) {
+func (r *HosstedProjectReconciler) getPods(ctx context.Context, namespace, releaseName string) ([]PodInfo, []SecurityInfo, error) {
 	pods, err := r.listPods(ctx, namespace, map[string]string{
 		"app.kubernetes.io/instance":   releaseName,
 		"app.kubernetes.io/managed-by": "Helm",
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+
+	vulns, err := r.listVunerability(ctx, namespace)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	var podHolder []PodInfo
+	var securityInfoHolder []SecurityInfo
+	var securityInfoContainerHolder []SecurityInfoContainer
 	for _, po := range pods.Items {
 		podInfo := PodInfo{
 			Name:      po.Name,
@@ -241,9 +221,29 @@ func (r *HosstedProjectReconciler) getPods(ctx context.Context, namespace, relea
 			Status:    string(po.Status.Phase),
 		}
 		podHolder = append(podHolder, podInfo)
+
+		for _, container := range po.Spec.Containers {
+			for _, vuln := range *vulns {
+				if container.Name == vuln.GetLabels()["trivy-operator.container.name"] {
+					securityInfoContainer := SecurityInfoContainer{
+						ContainerImage:       container.Image,
+						Type:                 "k8s",
+						VulnerabilitySummary: vuln.Report.Summary,
+						Vulnerabilities:      vuln.Report.Vulnerabilities,
+					}
+					securityInfoContainerHolder = append(securityInfoContainerHolder, securityInfoContainer)
+				}
+			}
+		}
+		securityInfo := SecurityInfo{
+			PodName:      po.Name,
+			PodNamespace: po.Namespace,
+			Containers:   securityInfoContainerHolder,
+		}
+		securityInfoHolder = append(securityInfoHolder, securityInfo)
 	}
 
-	return podHolder, nil
+	return podHolder, securityInfoHolder, nil
 }
 
 // getServices retrieves services for a given release in the specified namespace.

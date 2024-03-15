@@ -13,7 +13,6 @@ spec:
   monitoring:
     enable: true 
   denyNamespaces: 
-  - kube-system
   - local-path-storage
   - kube-node-lease
   - kube-public

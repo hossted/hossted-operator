@@ -46,6 +46,8 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(hosstedcomv1.AddToScheme(scheme))
+
+	utilruntime.Must(hosstedcomv1.TrivyAddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 

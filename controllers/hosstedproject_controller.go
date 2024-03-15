@@ -68,6 +68,8 @@ func (r *HosstedProjectReconciler) handleReconciliation(ctx context.Context, ins
 		return ctrl.Result{}, err
 	}
 
+	b, _ := json.Marshal(collector)
+	fmt.Println(string(b))
 	if instance.Status.ClusterUUID == "" {
 		return r.handleNewCluster(ctx, instance, collector, currentRevision, helmStatus, logger)
 	}

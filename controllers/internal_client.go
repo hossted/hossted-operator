@@ -119,17 +119,19 @@ func (r *HosstedProjectReconciler) getSecret(ctx context.Context, name, namespac
 }
 
 // getSecrets gets secrets in a given namespace with specific labels.
-func (r *HosstedProjectReconciler) getVunerability(ctx context.Context, name, namespace string) (*trivy.VulnerabilityReport, error) {
-	getReport := &trivy.VulnerabilityReport{}
+func (r *HosstedProjectReconciler) listVunerability(ctx context.Context, namespace string) (*[]trivy.VulnerabilityReport, error) {
+	listReport := &trivy.VulnerabilityReportList{}
 
-	err := r.Client.Get(ctx, types.NamespacedName{
-		Name:      name,
-		Namespace: namespace,
-	}, getReport, &client.GetOptions{})
+	listOpts := []client.ListOption{
+		client.InNamespace(namespace),
+	}
+
+	err := r.Client.List(ctx, listReport, listOpts...)
 	if err != nil {
 		return nil, err
 	}
-	return getReport, nil
+
+	return &listReport.Items, nil
 }
 
 // patchStatus patches the status of an object.

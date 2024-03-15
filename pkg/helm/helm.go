@@ -160,7 +160,7 @@ func repoAdd(h Helm) error {
 		if _, err := r.DownloadIndexFile(); err != nil {
 			err := errors.Wrapf(err, "looks like we are unable to update helm repo %q", h.RepoUrl)
 			return err
-		} 
+		}
 		return nil
 	}
 	// Create a new chart repository
