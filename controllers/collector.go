@@ -220,18 +220,21 @@ func (r *HosstedProjectReconciler) getPods(ctx context.Context, namespace, relea
 			Image:     po.Spec.Containers[0].Image,
 			Status:    string(po.Status.Phase),
 		}
-		podHolder = append(podHolder, podInfo)
 
-		for _, container := range po.Spec.Containers {
-			for _, vuln := range *vulns {
-				if container.Name == vuln.GetLabels()["trivy-operator.container.name"] {
-					securityInfoContainer := SecurityInfoContainer{
-						ContainerImage:       container.Image,
-						Type:                 "k8s",
-						VulnerabilitySummary: vuln.Report.Summary,
-						Vulnerabilities:      vuln.Report.Vulnerabilities,
+		if vulns != nil {
+			for _, container := range po.Spec.Containers {
+				for _, vuln := range *vulns {
+					if container.Name == vuln.GetLabels()["trivy-operator.container.name"] {
+						if vuln.Report.Vulnerabilities != nil {
+							securityInfoContainer := SecurityInfoContainer{
+								ContainerImage:       container.Image,
+								Type:                 "k8s",
+								VulnerabilitySummary: vuln.Report.Summary,
+								Vulnerabilities:      vuln.Report.Vulnerabilities,
+							}
+							securityInfoContainerHolder = append(securityInfoContainerHolder, securityInfoContainer)
+						}
 					}
-					securityInfoContainerHolder = append(securityInfoContainerHolder, securityInfoContainer)
 				}
 			}
 		}
@@ -240,6 +243,8 @@ func (r *HosstedProjectReconciler) getPods(ctx context.Context, namespace, relea
 			PodNamespace: po.Namespace,
 			Containers:   securityInfoContainerHolder,
 		}
+		podHolder = append(podHolder, podInfo)
+
 		securityInfoHolder = append(securityInfoHolder, securityInfo)
 	}
 

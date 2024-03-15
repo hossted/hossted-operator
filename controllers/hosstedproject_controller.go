@@ -63,15 +63,26 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 // handleReconciliation handles the reconciliation process.
 func (r *HosstedProjectReconciler) handleReconciliation(ctx context.Context, instance *hosstedcomv1.Hosstedproject, logger logr.Logger) (ctrl.Result, error) {
-	collector, currentRevision, helmStatus, err := r.collector(ctx, instance)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
+	var err error
+	var collector []*Collector
+	var currentRevision []int
+	var helmStatus []hosstedcomv1.HelmInfo
 
-	b, _ := json.Marshal(collector)
-	fmt.Println(string(b))
 	if instance.Status.ClusterUUID == "" {
+		clusterUUID := "K-" + uuid.NewString()
+		instance.Status.ClusterUUID = clusterUUID
+		// Update status
+		if err := r.Status().Update(ctx, instance); err != nil {
+			logger.Error(err, "Failed to update status")
+			return ctrl.Result{}, err
+		}
+
+		collector, currentRevision, helmStatus, err = r.collector(ctx, instance)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 		return r.handleNewCluster(ctx, instance, collector, currentRevision, helmStatus, logger)
+
 	}
 
 	return r.handleExistingCluster(ctx, instance, collector, currentRevision, helmStatus, logger)
@@ -80,26 +91,25 @@ func (r *HosstedProjectReconciler) handleReconciliation(ctx context.Context, ins
 
 // handleNewCluster handles reconciliation when a new cluster is created.
 func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instance *hosstedcomv1.Hosstedproject, collector []*Collector, currentRevision []int, helmStatus []hosstedcomv1.HelmInfo, logger logr.Logger) (ctrl.Result, error) {
+
 	sort.Ints(currentRevision)
 
-	clusterUUID := "K-" + uuid.NewString()
 	instance.Status.HelmStatus = helmStatus
-	instance.Status.ClusterUUID = clusterUUID
 	instance.Status.EmailID = os.Getenv("EMAIL_ID")
 	instance.Status.LastReconciledTimestamp = time.Now().String()
 	instance.Status.Revision = currentRevision
+
+	// Update status
+	if err := r.Status().Update(ctx, instance); err != nil {
+		logger.Error(err, "Failed to update status")
+		return ctrl.Result{}, err
+	}
 
 	if err := r.registerApps(ctx, instance, collector, logger); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if err := r.registerClusterUUID(ctx, instance, clusterUUID, logger); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// Update status
-	if err := r.Status().Update(ctx, instance); err != nil {
-		logger.Error(err, "Failed to update status")
+	if err := r.registerClusterUUID(ctx, instance, instance.Status.ClusterUUID, logger); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -137,6 +147,9 @@ func (r *HosstedProjectReconciler) handleExistingCluster(ctx context.Context, in
 
 // registerApps registers applications with the Hossted API.
 func (r *HosstedProjectReconciler) registerApps(ctx context.Context, instance *hosstedcomv1.Hosstedproject, collector []*Collector, logger logr.Logger) error {
+
+	b, _ := json.Marshal(collector)
+	fmt.Println(string(b))
 	for i := range collector {
 		collector[i].AppAPIInfo.ClusterUUID = instance.Status.ClusterUUID
 		collectorJson, err := json.Marshal(collector[i])
