@@ -76,7 +76,6 @@ func (r *HosstedProjectReconciler) handleReconciliation(ctx context.Context, ins
 			logger.Error(err, "Failed to update status")
 			return ctrl.Result{}, err
 		}
-
 		collector, currentRevision, helmStatus, err = r.collector(ctx, instance)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -84,7 +83,10 @@ func (r *HosstedProjectReconciler) handleReconciliation(ctx context.Context, ins
 		return r.handleNewCluster(ctx, instance, collector, currentRevision, helmStatus, logger)
 
 	}
-
+	collector, currentRevision, helmStatus, err = r.collector(ctx, instance)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 	return r.handleExistingCluster(ctx, instance, collector, currentRevision, helmStatus, logger)
 
 }

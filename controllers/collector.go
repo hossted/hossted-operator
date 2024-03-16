@@ -180,6 +180,8 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 		collectors = append(collectors, collector)
 	}
 
+	fmt.Println(collectors)
+
 	sort.Ints(revisions)
 	// Convert map values to slice
 	var helmStatus []hosstedcomv1.HelmInfo
@@ -213,6 +215,7 @@ func (r *HosstedProjectReconciler) getPods(ctx context.Context, namespace, relea
 	var podHolder []PodInfo
 	var securityInfoHolder []SecurityInfo
 	var securityInfoContainerHolder []SecurityInfoContainer
+
 	for _, po := range pods.Items {
 		podInfo := PodInfo{
 			Name:      po.Name,
@@ -238,6 +241,7 @@ func (r *HosstedProjectReconciler) getPods(ctx context.Context, namespace, relea
 				}
 			}
 		}
+
 		securityInfo := SecurityInfo{
 			PodName:      po.Name,
 			PodNamespace: po.Namespace,
