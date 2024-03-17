@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sort"
 
+	trivy "github.com/aquasecurity/trivy-operator/pkg/apis/aquasecurity/v1alpha1"
 	"github.com/google/uuid"
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
 	helm "github.com/hossted/hossted-operator/pkg/helm"
@@ -19,11 +20,12 @@ type Collector struct {
 }
 
 type AppInfo struct {
-	HelmInfo    hosstedcomv1.HelmInfo `json:"helm_info"`
-	PodInfo     []PodInfo             `json:"pod_info"`
-	ServiceInfo []ServiceInfo         `json:"service_info"`
-	VolumeInfo  []VolumeInfo          `json:"volume_info"`
-	IngressInfo []IngressInfo         `json:"ingress_info"`
+	HelmInfo     hosstedcomv1.HelmInfo `json:"helm_info"`
+	PodInfo      []PodInfo             `json:"pod_info"`
+	ServiceInfo  []ServiceInfo         `json:"service_info"`
+	VolumeInfo   []VolumeInfo          `json:"volume_info"`
+	IngressInfo  []IngressInfo         `json:"ingress_info"`
+	SecurityInfo []SecurityInfo        `json:"security_info"`
 }
 
 // AppAPIInfo contains basic information about the application API.
@@ -62,8 +64,20 @@ type VolumeInfo struct {
 	Size      int    `json:"size"`
 }
 
-func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hosstedcomv1.Hosstedproject) ([]*Collector, []int, []hosstedcomv1.HelmInfo, error) {
+type SecurityInfo struct {
+	PodName      string                  `json:"pod_name"`
+	PodNamespace string                  `json:"pod_namespace"`
+	Containers   []SecurityInfoContainer `json:"containers"`
+}
 
+type SecurityInfoContainer struct {
+	ContainerImage       string                     `json:"container_image"`
+	Type                 string                     `json:"type"`
+	VulnerabilitySummary trivy.VulnerabilitySummary `json:"summary"`
+	Vulnerabilities      []trivy.Vulnerability      `json:"vulnerabilities"`
+}
+
+func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hosstedcomv1.Hosstedproject) ([]*Collector, []int, []hosstedcomv1.HelmInfo, error) {
 	var collectors []*Collector
 	namespaceList, err := r.listNamespaces(ctx)
 	if err != nil {
@@ -76,6 +90,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 	var revisions []int
 
 	var helmStatusMap = make(map[string]hosstedcomv1.HelmInfo) // Use a map to store unique HelmInfo structs
+	var helmStatus []hosstedcomv1.HelmInfo
 
 	for _, ns := range filteredNamespaces {
 
@@ -92,20 +107,18 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 		// Initialize a slice to collect HelmInfo structs for this iteration
 
 		var (
-			helmInfo  hosstedcomv1.HelmInfo
-			podHolder []PodInfo
-			svcHolder []ServiceInfo
-			pvcHolder []VolumeInfo
-			ingHolder []IngressInfo
+			helmInfo       hosstedcomv1.HelmInfo
+			podHolder      []PodInfo
+			svcHolder      []ServiceInfo
+			pvcHolder      []VolumeInfo
+			ingHolder      []IngressInfo
+			securityHolder []SecurityInfo
 		)
-
 		for _, release := range releases {
-
 			helmInfo, err = r.getHelmInfo(ctx, *release, instance)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-
 			// helmInfo.HosstedHelm = false
 			if isHostedHelm(*release) {
 				appUUID, err := r.getAppUUIDFromSecret(ctx, release.Namespace)
@@ -117,59 +130,58 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 					helmStatusMap[helmInfo.AppUUID] = helmInfo
 				}
 			}
-
-			podHolder, err = r.getPods(ctx, release.Namespace, release.Name)
+			podHolder, securityHolder, err = r.getPods(ctx, release.Namespace, release.Name)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-
 			svcHolder, err = r.getServices(ctx, release.Namespace, release.Name)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-
 			pvcHolder, err = r.getVolumes(ctx, release.Namespace, release.Name)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-
 			ingHolder, err = r.getIngress(ctx, release.Namespace, release.Name)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-
 			revisions = append(revisions, helmInfo.Revision)
 
+			// After collecting all HelmInfo structs for this iteration, assign to instance.Status.HelmStatus
+			appInfo := AppInfo{
+				HelmInfo:     helmInfo,
+				PodInfo:      podHolder,
+				ServiceInfo:  svcHolder,
+				VolumeInfo:   pvcHolder,
+				IngressInfo:  ingHolder,
+				SecurityInfo: securityHolder,
+			}
+
+			collector := &Collector{
+				AppAPIInfo: AppAPIInfo{
+					AppName:     appInfo.HelmInfo.Name,
+					ClusterUUID: instance.Status.ClusterUUID,
+					AppUUID:     appInfo.HelmInfo.AppUUID,
+					Type:        "k8s",
+					HosstedHelm: appInfo.HelmInfo.HosstedHelm,
+				},
+				AppInfo: appInfo,
+			}
+			collectors = append(collectors, collector)
+			helmStatus = append(helmStatus, appInfo.HelmInfo)
 		}
 
-		// After collecting all HelmInfo structs for this iteration, assign to instance.Status.HelmStatus
-		appInfo := AppInfo{
-			HelmInfo:    helmInfo,
-			PodInfo:     podHolder,
-			ServiceInfo: svcHolder,
-			VolumeInfo:  pvcHolder,
-			IngressInfo: ingHolder,
-		}
+		sort.Ints(revisions)
 
-		collector := &Collector{
-			AppAPIInfo: AppAPIInfo{
-				AppName:     appInfo.HelmInfo.Name,
-				ClusterUUID: instance.Status.ClusterUUID,
-				AppUUID:     appInfo.HelmInfo.AppUUID,
-				Type:        "k8s",
-				HosstedHelm: appInfo.HelmInfo.HosstedHelm,
-			},
-			AppInfo: appInfo,
-		}
-		collectors = append(collectors, collector)
 	}
-
-	sort.Ints(revisions)
 	// Convert map values to slice
-	var helmStatus []hosstedcomv1.HelmInfo
-	for _, helmInfo := range helmStatusMap {
-		helmStatus = append(helmStatus, helmInfo)
-	}
+
+	// for _, helmInfo := range helmStatusMap {
+	// 	fmt.Println("Helm status map ", helmInfo)
+	// 	helmStatus = append(helmStatus, helmInfo)
+
+	// }
 
 	return collectors, revisions, helmStatus, nil
 }
@@ -180,16 +192,24 @@ func (r *HosstedProjectReconciler) listReleases(ctx context.Context, namespace s
 }
 
 // getPods retrieves pods for a given release in the specified namespace.
-func (r *HosstedProjectReconciler) getPods(ctx context.Context, namespace, releaseName string) ([]PodInfo, error) {
+func (r *HosstedProjectReconciler) getPods(ctx context.Context, namespace, releaseName string) ([]PodInfo, []SecurityInfo, error) {
 	pods, err := r.listPods(ctx, namespace, map[string]string{
 		"app.kubernetes.io/instance":   releaseName,
 		"app.kubernetes.io/managed-by": "Helm",
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+
+	vulns, err := r.listVunerability(ctx, namespace)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	var podHolder []PodInfo
+	var securityInfoHolder []SecurityInfo
+	var securityInfoContainerHolder []SecurityInfoContainer
+
 	for _, po := range pods.Items {
 		podInfo := PodInfo{
 			Name:      po.Name,
@@ -197,10 +217,36 @@ func (r *HosstedProjectReconciler) getPods(ctx context.Context, namespace, relea
 			Image:     po.Spec.Containers[0].Image,
 			Status:    string(po.Status.Phase),
 		}
+
+		if vulns != nil {
+			for _, container := range po.Spec.Containers {
+				for _, vuln := range *vulns {
+					if container.Name == vuln.GetLabels()["trivy-operator.container.name"] {
+						if vuln.Report.Vulnerabilities != nil {
+							securityInfoContainer := SecurityInfoContainer{
+								ContainerImage:       container.Image,
+								Type:                 "k8s",
+								VulnerabilitySummary: vuln.Report.Summary,
+								Vulnerabilities:      vuln.Report.Vulnerabilities,
+							}
+							securityInfoContainerHolder = append(securityInfoContainerHolder, securityInfoContainer)
+						}
+					}
+				}
+			}
+		}
+
+		securityInfo := SecurityInfo{
+			PodName:      po.Name,
+			PodNamespace: po.Namespace,
+			Containers:   securityInfoContainerHolder,
+		}
 		podHolder = append(podHolder, podInfo)
+
+		securityInfoHolder = append(securityInfoHolder, securityInfo)
 	}
 
-	return podHolder, nil
+	return podHolder, securityInfoHolder, nil
 }
 
 // getServices retrieves services for a given release in the specified namespace.
@@ -234,7 +280,6 @@ func (r *HosstedProjectReconciler) getVolumes(ctx context.Context, namespace, re
 	if err != nil {
 		return nil, err
 	}
-
 	var pvcHolder []VolumeInfo
 	for _, pvc := range pvcs.Items {
 		pvcInfo := VolumeInfo{

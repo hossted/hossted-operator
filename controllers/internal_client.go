@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 
+	trivy "github.com/aquasecurity/trivy-operator/pkg/apis/aquasecurity/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -115,6 +116,22 @@ func (r *HosstedProjectReconciler) getSecret(ctx context.Context, name, namespac
 		return nil, err
 	}
 	return getSecret, nil
+}
+
+// getSecrets gets secrets in a given namespace with specific labels.
+func (r *HosstedProjectReconciler) listVunerability(ctx context.Context, namespace string) (*[]trivy.VulnerabilityReport, error) {
+	listReport := &trivy.VulnerabilityReportList{}
+
+	listOpts := []client.ListOption{
+		client.InNamespace(namespace),
+	}
+
+	err := r.Client.List(ctx, listReport, listOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &listReport.Items, nil
 }
 
 // patchStatus patches the status of an object.

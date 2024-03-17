@@ -20,6 +20,9 @@ limitations under the License.
 package v1
 
 import (
+	trivy "github.com/aquasecurity/trivy-operator/pkg/apis/aquasecurity/v1alpha1"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
@@ -28,9 +31,26 @@ var (
 	// GroupVersion is group version used to register these objects
 	GroupVersion = schema.GroupVersion{Group: "hossted.com", Version: "v1"}
 
+	TrivyGroupVersion = schema.GroupVersion{Group: "aquasecurity.github.io", Version: "v1alpha1"}
+
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 
+	TrivySchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
+
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
+
+	TrivyAddToScheme = TrivySchemeBuilder.AddToScheme
 )
+
+// Adds the list of known types to Scheme.
+func addKnownTypes(scheme *runtime.Scheme) error {
+	scheme.AddKnownTypes(
+		TrivyGroupVersion,
+		&trivy.VulnerabilityReport{},
+		&trivy.VulnerabilityReportList{},
+	)
+	meta.AddToGroupVersion(scheme, TrivyGroupVersion)
+	return nil
+}
