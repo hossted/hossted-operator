@@ -90,6 +90,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 	var revisions []int
 
 	var helmStatusMap = make(map[string]hosstedcomv1.HelmInfo) // Use a map to store unique HelmInfo structs
+	var helmStatus []hosstedcomv1.HelmInfo
 
 	for _, ns := range filteredNamespaces {
 
@@ -113,14 +114,11 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			ingHolder      []IngressInfo
 			securityHolder []SecurityInfo
 		)
-
 		for _, release := range releases {
-
 			helmInfo, err = r.getHelmInfo(ctx, *release, instance)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-
 			// helmInfo.HosstedHelm = false
 			if isHostedHelm(*release) {
 				appUUID, err := r.getAppUUIDFromSecret(ctx, release.Namespace)
@@ -132,62 +130,58 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 					helmStatusMap[helmInfo.AppUUID] = helmInfo
 				}
 			}
-
 			podHolder, securityHolder, err = r.getPods(ctx, release.Namespace, release.Name)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-
 			svcHolder, err = r.getServices(ctx, release.Namespace, release.Name)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-
 			pvcHolder, err = r.getVolumes(ctx, release.Namespace, release.Name)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-
 			ingHolder, err = r.getIngress(ctx, release.Namespace, release.Name)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-
 			revisions = append(revisions, helmInfo.Revision)
 
+			// After collecting all HelmInfo structs for this iteration, assign to instance.Status.HelmStatus
+			appInfo := AppInfo{
+				HelmInfo:     helmInfo,
+				PodInfo:      podHolder,
+				ServiceInfo:  svcHolder,
+				VolumeInfo:   pvcHolder,
+				IngressInfo:  ingHolder,
+				SecurityInfo: securityHolder,
+			}
+
+			collector := &Collector{
+				AppAPIInfo: AppAPIInfo{
+					AppName:     appInfo.HelmInfo.Name,
+					ClusterUUID: instance.Status.ClusterUUID,
+					AppUUID:     appInfo.HelmInfo.AppUUID,
+					Type:        "k8s",
+					HosstedHelm: appInfo.HelmInfo.HosstedHelm,
+				},
+				AppInfo: appInfo,
+			}
+			collectors = append(collectors, collector)
+			helmStatus = append(helmStatus, appInfo.HelmInfo)
 		}
 
-		// After collecting all HelmInfo structs for this iteration, assign to instance.Status.HelmStatus
-		appInfo := AppInfo{
-			HelmInfo:     helmInfo,
-			PodInfo:      podHolder,
-			ServiceInfo:  svcHolder,
-			VolumeInfo:   pvcHolder,
-			IngressInfo:  ingHolder,
-			SecurityInfo: securityHolder,
-		}
+		sort.Ints(revisions)
 
-		collector := &Collector{
-			AppAPIInfo: AppAPIInfo{
-				AppName:     appInfo.HelmInfo.Name,
-				ClusterUUID: instance.Status.ClusterUUID,
-				AppUUID:     appInfo.HelmInfo.AppUUID,
-				Type:        "k8s",
-				HosstedHelm: appInfo.HelmInfo.HosstedHelm,
-			},
-			AppInfo: appInfo,
-		}
-		collectors = append(collectors, collector)
 	}
-
-	fmt.Println(collectors)
-
-	sort.Ints(revisions)
 	// Convert map values to slice
-	var helmStatus []hosstedcomv1.HelmInfo
-	for _, helmInfo := range helmStatusMap {
-		helmStatus = append(helmStatus, helmInfo)
-	}
+
+	// for _, helmInfo := range helmStatusMap {
+	// 	fmt.Println("Helm status map ", helmInfo)
+	// 	helmStatus = append(helmStatus, helmInfo)
+
+	// }
 
 	return collectors, revisions, helmStatus, nil
 }
