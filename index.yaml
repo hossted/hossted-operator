@@ -3,7 +3,7 @@ entries:
   hossted-grafana-agent:
   - apiVersion: v2
     appVersion: "1.0"
-    created: "2024-03-14T02:29:14.71564+05:30"
+    created: "2024-03-17T23:17:23.838461+05:30"
     dependencies:
     - condition: grafana-agent.enabled
       name: grafana-agent
@@ -18,7 +18,7 @@ entries:
   hossted-operator:
   - apiVersion: v2
     appVersion: 0.0.1.beta.2
-    created: "2024-03-14T02:29:14.71655+05:30"
+    created: "2024-03-17T23:17:23.838998+05:30"
     description: A Helm chart for Kubernetes
     digest: dadf839b7bc10d00b3c3ad836e96254128db768682f1849396c036b4be968de3
     name: hossted-operator
@@ -26,4 +26,4 @@ entries:
     urls:
     - https://charts.hossted.com/helm-releases/hossted-operator-0.0.1.tgz
     version: 0.0.1
-generated: "2024-03-14T02:29:14.71278+05:30"
+generated: "2024-03-17T23:17:23.832656+05:30"
