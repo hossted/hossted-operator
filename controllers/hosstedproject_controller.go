@@ -25,7 +25,8 @@ import (
 // HosstedProjectReconciler reconciles a HosstedProject object
 type HosstedProjectReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme            *runtime.Scheme
+	ReconcileDuration time.Duration
 }
 
 // +kubebuilder:rbac:groups=hossted.com,resources=hosstedprojects,verbs=get;list;watch;create;update;patch;delete
@@ -59,15 +60,20 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	// Check if reconciliation should proceed
 	if !instance.Spec.Stop {
-		return r.handleReconciliation(ctx, instance, logger)
+		err = r.handleReconciliation(ctx, instance, logger)
+		if err != nil {
+			return ctrl.Result{}, err
+		} else {
+			return ctrl.Result{RequeueAfter: r.ReconcileDuration}, nil
+		}
 	}
 
 	logger.Info("Reconciliation stopped", "name", req.Name)
-	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+	return ctrl.Result{RequeueAfter: r.ReconcileDuration}, nil
 }
 
 // handleReconciliation handles the reconciliation process.
-func (r *HosstedProjectReconciler) handleReconciliation(ctx context.Context, instance *hosstedcomv1.Hosstedproject, logger logr.Logger) (ctrl.Result, error) {
+func (r *HosstedProjectReconciler) handleReconciliation(ctx context.Context, instance *hosstedcomv1.Hosstedproject, logger logr.Logger) error {
 	var err error
 	var collector []*Collector
 	var currentRevision []int
@@ -78,26 +84,34 @@ func (r *HosstedProjectReconciler) handleReconciliation(ctx context.Context, ins
 		instance.Status.ClusterUUID = clusterUUID
 		// Update status
 		if err := r.Status().Update(ctx, instance); err != nil {
-			logger.Error(err, "Failed to update status")
-			return ctrl.Result{}, err
+			return err
 		}
 		collector, currentRevision, helmStatus, err = r.collector(ctx, instance)
 		if err != nil {
-			return ctrl.Result{}, err
+			return err
 		}
-		return r.handleNewCluster(ctx, instance, collector, currentRevision, helmStatus, logger)
+		err = r.handleNewCluster(ctx, instance, collector, currentRevision, helmStatus, logger)
+		if err != nil {
+			return err
+		}
 
 	}
 	collector, currentRevision, helmStatus, err = r.collector(ctx, instance)
 	if err != nil {
-		return ctrl.Result{}, err
+		return err
 	}
-	return r.handleExistingCluster(ctx, instance, collector, currentRevision, helmStatus, logger)
+
+	err = r.handleExistingCluster(ctx, instance, collector, currentRevision, helmStatus, logger)
+	if err != nil {
+		return err
+	}
+
+	return nil
 
 }
 
 // handleNewCluster handles reconciliation when a new cluster is created.
-func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instance *hosstedcomv1.Hosstedproject, collector []*Collector, currentRevision []int, helmStatus []hosstedcomv1.HelmInfo, logger logr.Logger) (ctrl.Result, error) {
+func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instance *hosstedcomv1.Hosstedproject, collector []*Collector, currentRevision []int, helmStatus []hosstedcomv1.HelmInfo, logger logr.Logger) error {
 
 	sort.Ints(currentRevision)
 
@@ -108,26 +122,25 @@ func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instanc
 
 	// Update status
 	if err := r.Status().Update(ctx, instance); err != nil {
-		logger.Error(err, "Failed to update status")
-		return ctrl.Result{}, err
+		return err
 	}
 
 	if err := r.registerApps(ctx, instance, collector, logger); err != nil {
-		return ctrl.Result{}, err
+		return err
 	}
 
 	if err := r.registerClusterUUID(ctx, instance, instance.Status.ClusterUUID, logger); err != nil {
-		return ctrl.Result{}, err
+		return err
 	}
 
-	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+	return nil
 }
 
 // handleExistingCluster handles reconciliation for an existing cluster.
-func (r *HosstedProjectReconciler) handleExistingCluster(ctx context.Context, instance *hosstedcomv1.Hosstedproject, collector []*Collector, currentRevision []int, helmStatus []hosstedcomv1.HelmInfo, logger logr.Logger) (ctrl.Result, error) {
+func (r *HosstedProjectReconciler) handleExistingCluster(ctx context.Context, instance *hosstedcomv1.Hosstedproject, collector []*Collector, currentRevision []int, helmStatus []hosstedcomv1.HelmInfo, logger logr.Logger) error {
 	if !compareSlices(instance.Status.Revision, currentRevision) {
 		if err := r.registerApps(ctx, instance, collector, logger); err != nil {
-			return ctrl.Result{}, err
+			return err
 		}
 
 		// Update instance status
@@ -137,19 +150,19 @@ func (r *HosstedProjectReconciler) handleExistingCluster(ctx context.Context, in
 
 		// Update status
 		if err := r.Status().Update(ctx, instance); err != nil {
-			logger.Error(err, "Failed to update status")
-			return ctrl.Result{}, err
+			return err
 		}
 
-		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+		return nil
 	}
+
 	err := r.handleMonitoring(ctx, instance, logger)
 	if err != nil {
-		return ctrl.Result{}, err
+		return err
 	}
 
 	logger.Info("No state change detected, requeueing")
-	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+	return nil
 }
 
 // registerApps registers applications with the Hossted API.
@@ -173,7 +186,6 @@ func (r *HosstedProjectReconciler) registerApps(ctx context.Context, instance *h
 		logger.Info(fmt.Sprintf("Sending req no [%d] to hossted API", i), "appUUID", collector[i].AppAPIInfo.AppUUID, "resp", resp.ResponseBody, "statuscode", resp.StatusCode)
 	}
 
-	time.Sleep(time.Second * 10)
 	return nil
 }
 
