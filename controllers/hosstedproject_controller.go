@@ -59,15 +59,20 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	err := r.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
-		return ctrl.Result{}, err
-	}
-
-	vr := &trivy.VulnerabilityReport{}
-	err = r.Get(ctx, req.NamespacedName, vr)
-	if err != nil {
-		if errors.IsNotFound(err) {
+			// instance not found check if req is of type VulnerabilityReport
+			vr := &trivy.VulnerabilityReport{}
+			err = r.Get(ctx, req.NamespacedName, vr)
+			if err != nil {
+				if errors.IsNotFound(err) {
+					return ctrl.Result{}, nil
+				}
+				return ctrl.Result{}, err
+			}
+			// send vunerability report
+			err = r.handleVulnReports(ctx, logger)
+			if err != nil {
+				return ctrl.Result{}, nil
+			}
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
@@ -320,5 +325,29 @@ func (r *HosstedProjectReconciler) findObjectsForVR(ctx context.Context, vr clie
 			},
 		}
 	}
+
 	return requests
+}
+
+// handleExistingCluster handles reconciliation for an existing cluster.
+func (r *HosstedProjectReconciler) handleVulnReports(ctx context.Context, logger logr.Logger) error {
+	var err error
+	var collector []*Collector
+
+	instance := &hosstedcomv1.HosstedprojectList{}
+	listOps := &client.ListOptions{}
+	err = r.List(ctx, instance, listOps)
+	if err != nil {
+		return err
+	}
+	inst := &hosstedcomv1.Hosstedproject{}
+	inst = &instance.Items[0]
+	collector, _, _, err = r.collector(ctx, inst)
+	if err != nil {
+		return err
+	}
+	if err := r.registerApps(ctx, inst, collector, logger); err != nil {
+		return err
+	}
+	return nil
 }
