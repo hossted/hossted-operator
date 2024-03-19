@@ -9,6 +9,7 @@ import (
 
 	"time"
 
+	trivy "github.com/aquasecurity/trivy-operator/pkg/apis/aquasecurity/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
@@ -18,8 +19,13 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // HosstedProjectReconciler reconciles a HosstedProject object
@@ -51,6 +57,15 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// Get Hosstedproject custom resource
 	instance := &hosstedcomv1.Hosstedproject{}
 	err := r.Get(ctx, req.NamespacedName, instance)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	vr := &trivy.VulnerabilityReport{}
+	err = r.Get(ctx, req.NamespacedName, vr)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -274,7 +289,36 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *HosstedProjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hosstedcomv1.Hosstedproject{}).
+		Watches(
+			&trivy.VulnerabilityReport{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForVR),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		Complete(r)
+}
+
+func (r *HosstedProjectReconciler) findObjectsForVR(ctx context.Context, vr client.Object) []reconcile.Request {
+	vrs := &trivy.VulnerabilityReportList{}
+	listOps := &client.ListOptions{
+		Namespace: vr.GetNamespace(),
+	}
+
+	err := r.List(ctx, vrs, listOps)
+	if err != nil {
+		return []reconcile.Request{}
+	}
+
+	requests := make([]reconcile.Request, len(vrs.Items))
+	for i, item := range vrs.Items {
+		requests[i] = reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      item.GetName(),
+				Namespace: item.GetNamespace(),
+			},
+		}
+	}
+	return requests
 }
