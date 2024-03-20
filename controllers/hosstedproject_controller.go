@@ -20,9 +20,11 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -299,34 +301,18 @@ func (r *HosstedProjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&hosstedcomv1.Hosstedproject{}).
 		Watches(
 			&trivy.VulnerabilityReport{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjectsForVR),
+			// handler.EnqueueRequestsFromMapFunc(r.findObjectsForVR),
+			handler.Funcs{
+				CreateFunc: func(ctx context.Context, e event.CreateEvent, q workqueue.RateLimitingInterface) {
+					q.Add(reconcile.Request{NamespacedName: types.NamespacedName{
+						Name:      e.Object.GetName(),
+						Namespace: e.Object.GetNamespace(),
+					}})
+				},
+			},
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Complete(r)
-}
-
-func (r *HosstedProjectReconciler) findObjectsForVR(ctx context.Context, vr client.Object) []reconcile.Request {
-	vrs := &trivy.VulnerabilityReportList{}
-	listOps := &client.ListOptions{
-		Namespace: vr.GetNamespace(),
-	}
-
-	err := r.List(ctx, vrs, listOps)
-	if err != nil {
-		return []reconcile.Request{}
-	}
-
-	requests := make([]reconcile.Request, len(vrs.Items))
-	for i, item := range vrs.Items {
-		requests[i] = reconcile.Request{
-			NamespacedName: types.NamespacedName{
-				Name:      item.GetName(),
-				Namespace: item.GetNamespace(),
-			},
-		}
-	}
-
-	return requests
 }
 
 // handleExistingCluster handles reconciliation for an existing cluster.
