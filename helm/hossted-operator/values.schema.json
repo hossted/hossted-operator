@@ -15,7 +15,10 @@
           "EMAIL_ID": { 
             "type": "string",
             "format": "email"
-          }          
+          },
+          "RECONCILE_DURATION": { 
+            "type": "string"          
+          }  
         },
         "required": ["HOSSTED_API_URL", "HOSSTED_AUTH_TOKEN", "EMAIL_ID"],
         "additionalProperties": false

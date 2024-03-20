@@ -9,6 +9,7 @@ import (
 
 	"time"
 
+	trivy "github.com/aquasecurity/trivy-operator/pkg/apis/aquasecurity/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
@@ -18,8 +19,15 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // HosstedProjectReconciler reconciles a HosstedProject object
@@ -53,6 +61,20 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	err := r.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			// instance not found check if req is of type VulnerabilityReport
+			vr := &trivy.VulnerabilityReport{}
+			err = r.Get(ctx, req.NamespacedName, vr)
+			if err != nil {
+				if errors.IsNotFound(err) {
+					return ctrl.Result{}, nil
+				}
+				return ctrl.Result{}, err
+			}
+			// send vunerability report
+			err = r.handleVulnReports(ctx, logger)
+			if err != nil {
+				return ctrl.Result{}, nil
+			}
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
@@ -274,7 +296,44 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *HosstedProjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hosstedcomv1.Hosstedproject{}).
+		Watches(
+			&trivy.VulnerabilityReport{},
+			// handler.EnqueueRequestsFromMapFunc(r.findObjectsForVR),
+			handler.Funcs{
+				CreateFunc: func(ctx context.Context, e event.CreateEvent, q workqueue.RateLimitingInterface) {
+					q.Add(reconcile.Request{NamespacedName: types.NamespacedName{
+						Name:      e.Object.GetName(),
+						Namespace: e.Object.GetNamespace(),
+					}})
+				},
+			},
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		Complete(r)
+}
+
+// handleExistingCluster handles reconciliation for an existing cluster.
+func (r *HosstedProjectReconciler) handleVulnReports(ctx context.Context, logger logr.Logger) error {
+	var err error
+	var collector []*Collector
+
+	instance := &hosstedcomv1.HosstedprojectList{}
+	listOps := &client.ListOptions{}
+	err = r.List(ctx, instance, listOps)
+	if err != nil {
+		return err
+	}
+	inst := &hosstedcomv1.Hosstedproject{}
+	inst = &instance.Items[0]
+	collector, _, _, err = r.collector(ctx, inst)
+	if err != nil {
+		return err
+	}
+	if err := r.registerApps(ctx, inst, collector, logger); err != nil {
+		return err
+	}
+	return nil
 }
