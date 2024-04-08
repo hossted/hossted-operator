@@ -1,10 +1,18 @@
 env:
   HOSSTED_API_URL: "https://"
-  HOSSTED_AUTH_TOKEN: ""
   EMAIL_ID: ""
   RECONCILE_DURATION: "10s"
+  HOSSTED_ORG_ID: ""
 
 replicas: 1
+
+secret:
+  HOSSTED_AUTH_TOKEN: ""
+
+cve:
+  enable: false
+monitoring:
+  enable: false
 
 nameOverride: hossted
 

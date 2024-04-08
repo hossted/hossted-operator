@@ -71,7 +71,7 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				return ctrl.Result{}, err
 			}
 			// send vunerability report
-			if instance.Spec.CVE.Enable  {
+			if instance.Spec.CVE.Enable {
 				err = r.handleVulnReports(ctx, logger)
 				if err != nil {
 					return ctrl.Result{}, nil

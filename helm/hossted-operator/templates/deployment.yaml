@@ -66,6 +66,11 @@ spec:
         command:
         - /manager
         env:
+          - name: HOSSTED_AUTH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "hossted-operator.fullname" . }}-secret
+                key: AUTH_TOKEN        
         {{- range $key, $value :=  .Values.env }}
           - name: {{ $key }}
             value: {{ tpl $value $ | quote }}

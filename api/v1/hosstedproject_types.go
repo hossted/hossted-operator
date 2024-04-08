@@ -24,7 +24,7 @@ import (
 type HosstedprojectSpec struct {
 	Stop           bool       `json:"stop,omitempty"`
 	Monitoring     Monitoring `json:"monitoring,omitempty"`
-	CVE     CVE `json:"cve,omitempty"`
+	CVE            CVE        `json:"cve,omitempty"`
 	DenyNamespaces []string   `json:"denyNamespaces,omitempty"`
 }
 

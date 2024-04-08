@@ -9,24 +9,33 @@
             "type": "string",
             "minLength": 1
           },
-          "HOSSTED_AUTH_TOKEN": {
-            "type": "string"
-          },
           "EMAIL_ID": { 
             "type": "string",
             "format": "email"
           },
+          "HOSSTED_ORG_ID": { 
+            "type": "string"
+          },          
           "RECONCILE_DURATION": { 
             "type": "string"          
           }  
         },
-        "required": ["HOSSTED_API_URL", "HOSSTED_AUTH_TOKEN", "EMAIL_ID"],
+        "required": ["HOSSTED_API_URL", "HOSSTED_ORG_ID", "EMAIL_ID"],
         "additionalProperties": false
       },
       "replicas": {
         "type": "integer",
         "minimum": 1
       },
+      "secret": {
+        "HOSSTED_AUTH_TOKEN": "string"
+      },
+      "cve": {
+        "enable": "string"
+      },
+      "monitoring": {
+        "enable": "string"
+      },      
       "nameOverride": {
         "type": "string"
       },
