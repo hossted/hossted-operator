@@ -24,10 +24,17 @@ import (
 type HosstedprojectSpec struct {
 	Stop           bool       `json:"stop,omitempty"`
 	Monitoring     Monitoring `json:"monitoring,omitempty"`
+	CVE     CVE `json:"cve,omitempty"`
 	DenyNamespaces []string   `json:"denyNamespaces,omitempty"`
 }
 
 type Monitoring struct {
+	// +kubebuilder:default:=false
+	Enable bool `json:"enable,omitempty"`
+}
+
+type CVE struct {
+	// +kubebuilder:default:=false
 	Enable bool `json:"enable,omitempty"`
 }
 
