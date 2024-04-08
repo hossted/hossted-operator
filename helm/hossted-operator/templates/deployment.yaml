@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "hossted-operator.fullname" . }}-controller-manager
+  namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/component: manager
     control-plane: controller-manager
