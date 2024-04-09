@@ -149,11 +149,11 @@ func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instanc
 		return err
 	}
 
-	if err := r.registerApps(ctx, instance, collector, logger); err != nil {
+	if err := r.registerClusterUUID(ctx, instance, instance.Status.ClusterUUID, logger); err != nil {
 		return err
 	}
 
-	if err := r.registerClusterUUID(ctx, instance, instance.Status.ClusterUUID, logger); err != nil {
+	if err := r.registerApps(ctx, instance, collector, logger); err != nil {
 		return err
 	}
 
