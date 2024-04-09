@@ -37,6 +37,12 @@ spec:
           spec:
             description: HosstedprojectSpec defines the desired state of Hosstedproject
             properties:
+              cve:
+                properties:
+                  enable:
+                    default: false
+                    type: boolean
+                type: object
               denyNamespaces:
                 items:
                   type: string
@@ -44,6 +50,7 @@ spec:
               monitoring:
                 properties:
                   enable:
+                    default: false
                     type: boolean
                 type: object
               stop:

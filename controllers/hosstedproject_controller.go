@@ -71,11 +71,13 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				return ctrl.Result{}, err
 			}
 			// send vunerability report
-			err = r.handleVulnReports(ctx, logger)
-			if err != nil {
+			if instance.Spec.CVE.Enable {
+				err = r.handleVulnReports(ctx, logger)
+				if err != nil {
+					return ctrl.Result{}, nil
+				}
 				return ctrl.Result{}, nil
 			}
-			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
 	}
@@ -147,11 +149,11 @@ func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instanc
 		return err
 	}
 
-	if err := r.registerApps(ctx, instance, collector, logger); err != nil {
+	if err := r.registerClusterUUID(ctx, instance, instance.Status.ClusterUUID, logger); err != nil {
 		return err
 	}
 
-	if err := r.registerClusterUUID(ctx, instance, instance.Status.ClusterUUID, logger); err != nil {
+	if err := r.registerApps(ctx, instance, collector, logger); err != nil {
 		return err
 	}
 
@@ -218,11 +220,13 @@ func (r *HosstedProjectReconciler) registerClusterUUID(ctx context.Context, inst
 	type clusterUUIDBody struct {
 		Email   string `json:"email"`
 		ReqType string `json:"type"`
+		OrgID   string `json:"org_id"`
 	}
 
 	clusterUUIDBodyReq := clusterUUIDBody{
 		Email:   instance.Status.EmailID,
 		ReqType: "k8s",
+		OrgID:   os.Getenv("HOSSTED_ORG_ID"),
 	}
 
 	body, err := json.Marshal(clusterUUIDBodyReq)
