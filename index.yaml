@@ -17,7 +17,7 @@ entries:
     version: "1.0"
   hossted-operator:
   - apiVersion: v2
-    appVersion: 0.0.1.beta.4
+    appVersion: 0.0.1.beta.5
     created: "2024-03-20T22:28:18.19677+05:30"
     description: A Helm chart for Kubernetes
     digest: 9db7d20a8887a41f1d8952e9176602fba11e56a4c90f518fdf6c86f7c1377592

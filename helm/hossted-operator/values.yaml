@@ -1,5 +1,5 @@
 env:
-  HOSSTED_API_URL: "https://"
+  HOSSTED_API_URL: "https://api.dev.hossted.com/v1/instances"
   EMAIL_ID: ""
   RECONCILE_DURATION: "10s"
   HOSSTED_ORG_ID: ""
@@ -27,4 +27,3 @@ operator:
     requests:
       cpu: 10m
       memory: 64Mi
-
