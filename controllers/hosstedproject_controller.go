@@ -220,11 +220,13 @@ func (r *HosstedProjectReconciler) registerClusterUUID(ctx context.Context, inst
 	type clusterUUIDBody struct {
 		Email   string `json:"email"`
 		ReqType string `json:"type"`
+		OrgID   string `json:"org_id"`
 	}
 
 	clusterUUIDBodyReq := clusterUUIDBody{
 		Email:   instance.Status.EmailID,
 		ReqType: "k8s",
+		OrgID:   os.Getenv("HOSSTED_ORG_ID"),
 	}
 
 	body, err := json.Marshal(clusterUUIDBodyReq)
