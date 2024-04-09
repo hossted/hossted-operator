@@ -13,7 +13,7 @@ entries:
     digest: 59f73402a8cbee84c2a4c4957a1ef5e02e3785f21ae6c9559c42bbad16bd8f75
     name: hossted-grafana-agent
     urls:
-    - hossted-grafana-agent-1.0.tgz
+    - https://charts.hossted.com/helm-releases/hossted-grafana-agent-1.0.tgz
     version: "1.0"
   hossted-operator:
   - apiVersion: v2
@@ -24,7 +24,7 @@ entries:
     name: hossted-operator
     type: application
     urls:
-    - hossted-operator-0.0.2.tgz
+    - https://charts.hossted.com/helm-releases/hossted-operator-0.0.2.tgz
     version: 0.0.2
   - apiVersion: v2
     appVersion: 0.0.1.beta.5
@@ -34,6 +34,6 @@ entries:
     name: hossted-operator
     type: application
     urls:
-    - hossted-operator-0.0.1.tgz
+    - https://charts.hossted.com/helm-releases/hossted-operator-0.0.1.tgz
     version: 0.0.1
 generated: "2024-04-09T22:38:33.052994+05:30"
