@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gofrs/flock"
@@ -64,6 +65,8 @@ func Apply(h Helm) error {
 	settings.EnvVars()
 	// Add repository
 	repoAdd(h)
+
+	//RepoUpdate()
 
 	// Locate chart path
 	cp, err := client.ChartPathOptions.LocateChart(fmt.Sprintf("%s/%s", h.RepoName, h.ChartName), settings)
@@ -237,4 +240,40 @@ func DeleteRelease(chartName, namespace string) error {
 		return err
 	}
 	return nil
+}
+
+// RepoUpdate updates charts for all helm repos
+func RepoUpdate() {
+	var settings *cli.EnvSettings
+
+	repoFile := settings.RepositoryConfig
+
+	f, err := repo.LoadFile(repoFile)
+	if os.IsNotExist(errors.Cause(err)) || len(f.Repositories) == 0 {
+		log.Fatal(errors.New("no repositories found. You must add one before updating"))
+	}
+	var repos []*repo.ChartRepository
+	for _, cfg := range f.Repositories {
+		r, err := repo.NewChartRepository(cfg, getter.All(settings))
+		if err != nil {
+			log.Fatal(err)
+		}
+		repos = append(repos, r)
+	}
+
+	fmt.Printf("Hang tight while we grab the latest from your chart repositories...\n")
+	var wg sync.WaitGroup
+	for _, re := range repos {
+		wg.Add(1)
+		go func(re *repo.ChartRepository) {
+			defer wg.Done()
+			if _, err := re.DownloadIndexFile(); err != nil {
+				fmt.Printf("...Unable to get an update from the %q chart repository (%s):\n\t%s\n", re.Config.Name, re.Config.URL, err)
+			} else {
+				fmt.Printf("...Successfully got an update from the %q chart repository\n", re.Config.Name)
+			}
+		}(re)
+	}
+	wg.Wait()
+	fmt.Printf("Update Complete. ⎈ Happy Helming!⎈\n")
 }

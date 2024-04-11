@@ -149,9 +149,9 @@ func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instanc
 		return err
 	}
 
-	if err := r.registerClusterUUID(ctx, instance, instance.Status.ClusterUUID, logger); err != nil {
-		return err
-	}
+	// if err := r.registerClusterUUID(ctx, instance, instance.Status.ClusterUUID, logger); err != nil {
+	// 	return err
+	// }
 
 	if err := r.registerApps(ctx, instance, collector, logger); err != nil {
 		return err
@@ -162,23 +162,23 @@ func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instanc
 
 // handleExistingCluster handles reconciliation for an existing cluster.
 func (r *HosstedProjectReconciler) handleExistingCluster(ctx context.Context, instance *hosstedcomv1.Hosstedproject, collector []*Collector, currentRevision []int, helmStatus []hosstedcomv1.HelmInfo, logger logr.Logger) error {
-	if !compareSlices(instance.Status.Revision, currentRevision) {
-		if err := r.registerApps(ctx, instance, collector, logger); err != nil {
-			return err
-		}
+	// if !compareSlices(instance.Status.Revision, currentRevision) {
+	// 	if err := r.registerApps(ctx, instance, collector, logger); err != nil {
+	// 		return err
+	// 	}
 
-		// Update instance status
-		instance.Status.HelmStatus = helmStatus
-		instance.Status.Revision = currentRevision
-		instance.Status.LastReconciledTimestamp = time.Now().String()
+	// 	// Update instance status
+	// 	instance.Status.HelmStatus = helmStatus
+	// 	instance.Status.Revision = currentRevision
+	// 	instance.Status.LastReconciledTimestamp = time.Now().String()
 
-		// Update status
-		if err := r.Status().Update(ctx, instance); err != nil {
-			return err
-		}
+	// 	// Update status
+	// 	if err := r.Status().Update(ctx, instance); err != nil {
+	// 		return err
+	// 	}
 
-		return nil
-	}
+	// 	return nil
+	// }
 
 	err := r.handleMonitoring(ctx, instance, logger)
 	if err != nil {
@@ -251,8 +251,22 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 		ChartName: "hossted-grafana-agent",
 		RepoName:  "grafana",
 		RepoUrl:   "https://charts.hossted.com",
-		Namespace: "grafana-agent",
+		Namespace: "hossted-operator",
+		Values: []string{
+			"mimir_pwd=" + os.Getenv("MIMIR_PASSWORD"),
+			"uuid=" + instance.Status.ClusterUUID,
+		},
 	}
+
+	// kubeStateMetrics := helm.Helm{
+	// 	ChartName: "hossted-grafana-agent",
+	// 	RepoName:  "grafana",
+	// 	RepoUrl:   "https://charts.hossted.com",
+	// 	Namespace: "hossted-operator",
+	// 	Values: []string{
+	// 		"mimir_pwd=" + os.Getenv("MIMIR_PASSWORD"),
+	// 	},
+	// }
 
 	// Check if monitoring is enabled
 	if instance.Spec.Monitoring.Enable {
@@ -263,6 +277,8 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 		}
 
 		if !ok {
+
+			// install kubestate metrics
 			// Install Grafana Agent
 			err = helm.Apply(h)
 			if err != nil {
