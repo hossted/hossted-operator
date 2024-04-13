@@ -149,7 +149,11 @@ func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instanc
 		return err
 	}
 
-	if err := r.registerApps(instance, collector, logger); err != nil {
+	if err := r.registerClusterUUID(ctx, instance, instance.Status.ClusterUUID, logger); err != nil {
+		return err
+	}
+
+	if err := r.registerApps(ctx, instance, collector, logger); err != nil {
 		return err
 	}
 
@@ -159,7 +163,7 @@ func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instanc
 // handleExistingCluster handles reconciliation for an existing cluster.
 func (r *HosstedProjectReconciler) handleExistingCluster(ctx context.Context, instance *hosstedcomv1.Hosstedproject, collector []*Collector, currentRevision []int, helmStatus []hosstedcomv1.HelmInfo, logger logr.Logger) error {
 	if !compareSlices(instance.Status.Revision, currentRevision) {
-		if err := r.registerApps(instance, collector, logger); err != nil {
+		if err := r.registerApps(ctx, instance, collector, logger); err != nil {
 			return err
 		}
 
@@ -176,7 +180,7 @@ func (r *HosstedProjectReconciler) handleExistingCluster(ctx context.Context, in
 		return nil
 	}
 
-	err := r.handleMonitoring(ctx, instance)
+	err := r.handleMonitoring(ctx, instance, logger)
 	if err != nil {
 		return err
 	}
@@ -186,7 +190,7 @@ func (r *HosstedProjectReconciler) handleExistingCluster(ctx context.Context, in
 }
 
 // registerApps registers applications with the Hossted API.
-func (r *HosstedProjectReconciler) registerApps(instance *hosstedcomv1.Hosstedproject, collector []*Collector, logger logr.Logger) error {
+func (r *HosstedProjectReconciler) registerApps(ctx context.Context, instance *hosstedcomv1.Hosstedproject, collector []*Collector, logger logr.Logger) error {
 
 	b, _ := json.Marshal(collector)
 	fmt.Println(string(b))
@@ -210,7 +214,7 @@ func (r *HosstedProjectReconciler) registerApps(instance *hosstedcomv1.Hosstedpr
 }
 
 // registerClusterUUID registers the cluster UUID with the Hossted API.
-func (r *HosstedProjectReconciler) registerClusterUUID(instance *hosstedcomv1.Hosstedproject, clusterUUID string, logger logr.Logger) error {
+func (r *HosstedProjectReconciler) registerClusterUUID(ctx context.Context, instance *hosstedcomv1.Hosstedproject, clusterUUID string, logger logr.Logger) error {
 	clusterUUIDRegPath := os.Getenv("HOSSTED_API_URL") + "/clusters/" + clusterUUID + "/register"
 
 	type clusterUUIDBody struct {
@@ -241,9 +245,7 @@ func (r *HosstedProjectReconciler) registerClusterUUID(instance *hosstedcomv1.Ho
 }
 
 // enable monitoring using grafana-agent.
-func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instance *hosstedcomv1.Hosstedproject) error {
-
-	fmt.Println(instance.Status.ClusterUUID)
+func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instance *hosstedcomv1.Hosstedproject, logger logr.Logger) error {
 	// Helm configuration for Grafana Agent
 	h := helm.Helm{
 		ChartName: "hossted-grafana-agent",
@@ -356,7 +358,7 @@ func (r *HosstedProjectReconciler) handleVulnReports(ctx context.Context, logger
 	if err != nil {
 		return err
 	}
-	if err := r.registerApps(inst, collector, logger); err != nil {
+	if err := r.registerApps(ctx, inst, collector, logger); err != nil {
 		return err
 	}
 	return nil
