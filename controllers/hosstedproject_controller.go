@@ -58,6 +58,7 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	// Get Hosstedproject custom resource
 	instance := &hosstedcomv1.Hosstedproject{}
+
 	err := r.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -71,13 +72,12 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				return ctrl.Result{}, err
 			}
 			// send vunerability report
-			if instance.Spec.CVE.Enable {
-				err = r.handleVulnReports(ctx, logger)
-				if err != nil {
-					return ctrl.Result{}, nil
-				}
+			err = r.handleVulnReports(ctx, req.NamespacedName.Namespace, logger)
+			if err != nil {
 				return ctrl.Result{}, nil
 			}
+			return ctrl.Result{}, nil
+
 		}
 		return ctrl.Result{}, err
 	}
@@ -342,7 +342,7 @@ func (r *HosstedProjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // handleExistingCluster handles reconciliation for an existing cluster.
-func (r *HosstedProjectReconciler) handleVulnReports(ctx context.Context, logger logr.Logger) error {
+func (r *HosstedProjectReconciler) handleVulnReports(ctx context.Context, namespace string, logger logr.Logger) error {
 	var err error
 	var collector []*Collector
 
@@ -352,12 +352,20 @@ func (r *HosstedProjectReconciler) handleVulnReports(ctx context.Context, logger
 	if err != nil {
 		return err
 	}
+
 	inst := &hosstedcomv1.Hosstedproject{}
 	inst = &instance.Items[0]
+
+	for _, ns := range inst.Spec.DenyNamespaces {
+		if ns == namespace {
+			return fmt.Errorf("Namespace in deny list for VR")
+		}
+	}
 	collector, _, _, err = r.collector(ctx, inst)
 	if err != nil {
 		return err
 	}
+
 	if err := r.registerApps(ctx, inst, collector, logger); err != nil {
 		return err
 	}
