@@ -251,7 +251,18 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 		ChartName: "hossted-grafana-agent",
 		RepoName:  "grafana",
 		RepoUrl:   "https://charts.hossted.com",
-		Namespace: "grafana-agent",
+		Namespace: "hossted-operator",
+		Values: []string{
+			"mimir_pwd=" + os.Getenv("MIMIR_PASSWORD"),
+			"uuid=" + instance.Status.ClusterUUID,
+		},
+	}
+
+	ksm := helm.Helm{
+		ChartName: "kube-state-metrics",
+		RepoName:  "grafana",
+		RepoUrl:   "https://prometheus-community.github.io/helm-charts",
+		Namespace: "hossted-operator",
 	}
 
 	// Check if monitoring is enabled
@@ -263,8 +274,14 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 		}
 
 		if !ok {
+
+			// install kubestate metrics
 			// Install Grafana Agent
 			err = helm.Apply(h)
+			if err != nil {
+				return fmt.Errorf("enabling grafana-agent for monitoring failed %w", err)
+			}
+			err = helm.Apply(ksm)
 			if err != nil {
 				return fmt.Errorf("enabling grafana-agent for monitoring failed %w", err)
 			}
@@ -278,8 +295,13 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 			return err
 		}
 		if ok {
+			err_del := helm.DeleteRelease(ksm.ChartName, ksm.Namespace)
+			if err_del != nil {
+				return fmt.Errorf("kube state metrics deletion failed %w", err_del)
+			}
+
 			// Delete Grafana Agent release if it exists
-			err_del := helm.DeleteRelease(h.ChartName, h.Namespace)
+			err_del = helm.DeleteRelease(h.ChartName, h.Namespace)
 			if err_del != nil {
 				return fmt.Errorf("grafana Agent deletion failed %w", err_del)
 			}

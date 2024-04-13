@@ -13,7 +13,7 @@ spec:
   cve:
     enable: true
   monitoring:
-    enable: false 
+    enable: true 
   denyNamespaces: 
   - local-path-storage
   - kube-node-lease

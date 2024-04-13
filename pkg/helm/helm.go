@@ -65,6 +65,8 @@ func Apply(h Helm) error {
 	// Add repository
 	repoAdd(h)
 
+	//RepoUpdate()
+
 	// Locate chart path
 	cp, err := client.ChartPathOptions.LocateChart(fmt.Sprintf("%s/%s", h.RepoName, h.ChartName), settings)
 	if err != nil {
