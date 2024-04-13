@@ -3,6 +3,7 @@ env:
   EMAIL_ID: ""
   RECONCILE_DURATION: "10s"
   HOSSTED_ORG_ID: ""
+  MIMIR_PASSWORD: ""
 
 replicas: 1
 
@@ -10,9 +11,9 @@ secret:
   HOSSTED_AUTH_TOKEN: ""
 
 cve:
-  enable: false
+  enable: true
 monitoring:
-  enable: false
+  enable: true
 
 nameOverride: hossted
 
