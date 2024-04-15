@@ -218,15 +218,17 @@ func (r *HosstedProjectReconciler) registerClusterUUID(ctx context.Context, inst
 	clusterUUIDRegPath := os.Getenv("HOSSTED_API_URL") + "/clusters/" + clusterUUID + "/register"
 
 	type clusterUUIDBody struct {
-		Email   string `json:"email"`
-		ReqType string `json:"type"`
-		OrgID   string `json:"org_id"`
+		Email       string `json:"email"`
+		ReqType     string `json:"type"`
+		OrgID       string `json:"org_id"`
+		ContextName string `json:"context_name"`
 	}
 
 	clusterUUIDBodyReq := clusterUUIDBody{
-		Email:   instance.Status.EmailID,
-		ReqType: "k8s",
-		OrgID:   os.Getenv("HOSSTED_ORG_ID"),
+		Email:       instance.Status.EmailID,
+		ReqType:     "k8s",
+		OrgID:       os.Getenv("HOSSTED_ORG_ID"),
+		ContextName: os.Getenv("CONTEXT_NAME"),
 	}
 
 	body, err := json.Marshal(clusterUUIDBodyReq)
@@ -278,13 +280,13 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 			// install kubestate metrics
 			// Install Grafana Agent
 			err = helm.Apply(h)
-			if err != nil {
-				return fmt.Errorf("enabling grafana-agent for monitoring failed %w", err)
-			}
+			// if err != nil {
+			// 	return fmt.Errorf("enabling grafana-agent for monitoring failed %w", err)
+			// }
 			err = helm.Apply(ksm)
-			if err != nil {
-				return fmt.Errorf("enabling grafana-agent for monitoring failed %w", err)
-			}
+			// if err != nil {
+			// 	return fmt.Errorf("enabling grafana-agent for monitoring failed %w", err)
+			// }
 			return nil
 		}
 
