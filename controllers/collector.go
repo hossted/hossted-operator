@@ -33,7 +33,6 @@ type AppInfo struct {
 type AppAPIInfo struct {
 	OrgID       string `json:"org_id"`
 	ClusterUUID string `json:"cluster_uuid"`
-	ContextName string `json:"context_name"`
 	AppUUID     string `json:"app_uuid"`
 	AppName     string `json:"app_name"`
 	Type        string `json:"type"`
@@ -166,7 +165,6 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 					AppName:     appInfo.HelmInfo.Name,
 					OrgID:       os.Getenv("HOSSTED_ORG_ID"),
 					ClusterUUID: instance.Status.ClusterUUID,
-					ContextName: os.Getenv("CONTEXT_NAME"),
 					AppUUID:     appInfo.HelmInfo.AppUUID,
 					Type:        "k8s",
 					HosstedHelm: appInfo.HelmInfo.HosstedHelm,
