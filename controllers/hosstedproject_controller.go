@@ -265,6 +265,9 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 		RepoName:  "grafana",
 		RepoUrl:   "https://prometheus-community.github.io/helm-charts",
 		Namespace: "hossted-operator",
+		Values: []string{
+			"selfMonitor.enabled=true",
+		},
 	}
 
 	// Check if monitoring is enabled
