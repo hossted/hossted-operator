@@ -1,10 +1,10 @@
 env:
   HOSSTED_API_URL: "https://api.dev.hossted.com/v1/instances"
-  EMAIL_ID: ""
+  EMAIL_ID: "alex@linnovate.net"
   RECONCILE_DURATION: "10s"
-  HOSSTED_ORG_ID: ""
-  MIMIR_PASSWORD: ""
-  CONTEXT_NAME: ""
+  HOSSTED_ORG_ID: "123-123-123-123"
+  MIMIR_PASSWORD: "12345"
+  CONTEXT_NAME: "kind-kind"
 
 replicas: 1
 
