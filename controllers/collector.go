@@ -166,6 +166,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 					AppName:     appInfo.HelmInfo.Name,
 					OrgID:       os.Getenv("HOSSTED_ORG_ID"),
 					ClusterUUID: instance.Status.ClusterUUID,
+					ContextName: os.Getenv("CONTEXT_NAME"),
 					AppUUID:     appInfo.HelmInfo.AppUUID,
 					Type:        "k8s",
 					HosstedHelm: appInfo.HelmInfo.HosstedHelm,
