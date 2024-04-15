@@ -4,6 +4,7 @@ env:
   RECONCILE_DURATION: "10s"
   HOSSTED_ORG_ID: ""
   MIMIR_PASSWORD: ""
+  CONTEXT_NAME: ""
 
 replicas: 1
 

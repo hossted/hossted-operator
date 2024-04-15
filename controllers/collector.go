@@ -33,6 +33,7 @@ type AppInfo struct {
 type AppAPIInfo struct {
 	OrgID       string `json:"org_id"`
 	ClusterUUID string `json:"cluster_uuid"`
+	ContextName string `json:"context_name"`
 	AppUUID     string `json:"app_uuid"`
 	AppName     string `json:"app_name"`
 	Type        string `json:"type"`
