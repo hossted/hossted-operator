@@ -3,7 +3,6 @@ env:
   EMAIL_ID: "alex@linnovate.net"
   RECONCILE_DURATION: "10s"
   HOSSTED_ORG_ID: "123-123-123-123"
-  MIMIR_PASSWORD: "12345"
   CONTEXT_NAME: ""
 
 replicas: 1
@@ -22,10 +21,3 @@ operator:
   image:
     repository: hossted/operator
     tag: edge
-  resources:
-    limits:
-      cpu: 500m
-      memory: 128Mi
-    requests:
-      cpu: 10m
-      memory: 64Mi
