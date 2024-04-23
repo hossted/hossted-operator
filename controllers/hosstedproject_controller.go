@@ -149,11 +149,11 @@ func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instanc
 		return err
 	}
 
-	if err := r.registerClusterUUID(ctx, instance, instance.Status.ClusterUUID, logger); err != nil {
+	if err := r.registerClusterUUID(instance, instance.Status.ClusterUUID, logger); err != nil {
 		return err
 	}
 
-	if err := r.registerApps(ctx, instance, collector, logger); err != nil {
+	if err := r.registerApps(instance, collector, logger); err != nil {
 		return err
 	}
 
@@ -163,7 +163,7 @@ func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instanc
 // handleExistingCluster handles reconciliation for an existing cluster.
 func (r *HosstedProjectReconciler) handleExistingCluster(ctx context.Context, instance *hosstedcomv1.Hosstedproject, collector []*Collector, currentRevision []int, helmStatus []hosstedcomv1.HelmInfo, logger logr.Logger) error {
 	if !compareSlices(instance.Status.Revision, currentRevision) {
-		if err := r.registerApps(ctx, instance, collector, logger); err != nil {
+		if err := r.registerApps(instance, collector, logger); err != nil {
 			return err
 		}
 
@@ -180,7 +180,7 @@ func (r *HosstedProjectReconciler) handleExistingCluster(ctx context.Context, in
 		return nil
 	}
 
-	err := r.handleMonitoring(ctx, instance, logger)
+	err := r.handleMonitoring(ctx, instance)
 	if err != nil {
 		return err
 	}
@@ -190,7 +190,7 @@ func (r *HosstedProjectReconciler) handleExistingCluster(ctx context.Context, in
 }
 
 // registerApps registers applications with the Hossted API.
-func (r *HosstedProjectReconciler) registerApps(ctx context.Context, instance *hosstedcomv1.Hosstedproject, collector []*Collector, logger logr.Logger) error {
+func (r *HosstedProjectReconciler) registerApps(instance *hosstedcomv1.Hosstedproject, collector []*Collector, logger logr.Logger) error {
 
 	b, _ := json.Marshal(collector)
 	fmt.Println(string(b))
@@ -214,14 +214,17 @@ func (r *HosstedProjectReconciler) registerApps(ctx context.Context, instance *h
 }
 
 // registerClusterUUID registers the cluster UUID with the Hossted API.
-func (r *HosstedProjectReconciler) registerClusterUUID(ctx context.Context, instance *hosstedcomv1.Hosstedproject, clusterUUID string, logger logr.Logger) error {
+func (r *HosstedProjectReconciler) registerClusterUUID(instance *hosstedcomv1.Hosstedproject, clusterUUID string, logger logr.Logger) error {
 	clusterUUIDRegPath := os.Getenv("HOSSTED_API_URL") + "/clusters/" + clusterUUID + "/register"
 
 	type clusterUUIDBody struct {
-		Email       string `json:"email"`
-		ReqType     string `json:"type"`
-		OrgID       string `json:"org_id"`
-		ContextName string `json:"context_name"`
+		Email        string `json:"email"`
+		ReqType      string `json:"type"`
+		OrgID        string `json:"org_id"`
+		ContextName  string `json:"context_name"`
+		OptionsState struct {
+			Monitoring bool `json:"monitoring"`
+		} `json:"options_state"`
 	}
 
 	clusterUUIDBodyReq := clusterUUIDBody{
@@ -229,6 +232,9 @@ func (r *HosstedProjectReconciler) registerClusterUUID(ctx context.Context, inst
 		ReqType:     "k8s",
 		OrgID:       os.Getenv("HOSSTED_ORG_ID"),
 		ContextName: os.Getenv("CONTEXT_NAME"),
+		OptionsState: struct {
+			Monitoring bool `json:"monitoring"`
+		}{Monitoring: instance.Spec.Monitoring.Enable},
 	}
 
 	body, err := json.Marshal(clusterUUIDBodyReq)
@@ -247,7 +253,7 @@ func (r *HosstedProjectReconciler) registerClusterUUID(ctx context.Context, inst
 }
 
 // enable monitoring using grafana-agent.
-func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instance *hosstedcomv1.Hosstedproject, logger logr.Logger) error {
+func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instance *hosstedcomv1.Hosstedproject) error {
 	// Helm configuration for Grafana Agent
 	h := helm.Helm{
 		ChartName: "hossted-grafana-agent",
@@ -366,12 +372,13 @@ func (r *HosstedProjectReconciler) handleVulnReports(ctx context.Context, namesp
 			return fmt.Errorf("Namespace in deny list for VR")
 		}
 	}
+
 	collector, _, _, err = r.collector(ctx, inst)
 	if err != nil {
 		return err
 	}
 
-	if err := r.registerApps(ctx, inst, collector, logger); err != nil {
+	if err := r.registerApps(inst, collector, logger); err != nil {
 		return err
 	}
 	return nil
