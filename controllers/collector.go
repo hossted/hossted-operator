@@ -96,7 +96,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 
 	for _, ns := range filteredNamespaces {
 
-		releases, err := r.listReleases(ctx, ns)
+		releases, err := r.listReleases(ns)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -117,7 +117,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			securityHolder []SecurityInfo
 		)
 		for _, release := range releases {
-			helmInfo, err = r.getHelmInfo(ctx, *release, instance)
+			helmInfo, err = r.getHelmInfo(*release, instance)
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -190,7 +190,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 }
 
 // listReleases retrieves all Helm releases in the specified namespace.
-func (r *HosstedProjectReconciler) listReleases(ctx context.Context, namespace string) ([]*helmrelease.Release, error) {
+func (r *HosstedProjectReconciler) listReleases(namespace string) ([]*helmrelease.Release, error) {
 	return helm.ListReleases(namespace)
 }
 
@@ -320,7 +320,7 @@ func (r *HosstedProjectReconciler) getIngress(ctx context.Context, namespace, re
 }
 
 // getHelmInfo retrieves Helm release information.
-func (r *HosstedProjectReconciler) getHelmInfo(ctx context.Context, release helmrelease.Release, instance *hosstedcomv1.Hosstedproject) (hosstedcomv1.HelmInfo, error) {
+func (r *HosstedProjectReconciler) getHelmInfo(release helmrelease.Release, instance *hosstedcomv1.Hosstedproject) (hosstedcomv1.HelmInfo, error) {
 	helmStatus := instance.Status.HelmStatus // Get the current HelmStatus
 
 	existingUUID := findExistingUUID(helmStatus, release.Name, release.Namespace)

@@ -223,7 +223,9 @@ func (r *HosstedProjectReconciler) registerClusterUUID(instance *hosstedcomv1.Ho
 		OrgID        string `json:"org_id"`
 		ContextName  string `json:"context_name"`
 		OptionsState struct {
-			Monitoring bool `json:"monitoring"`
+			Monitoring bool `json:"monitoring_enabled"`
+			Logging    bool `json:"logging_enabled"`
+			CVE        bool `json:"cve_scan_enabled"`
 		} `json:"options_state"`
 	}
 
@@ -233,8 +235,14 @@ func (r *HosstedProjectReconciler) registerClusterUUID(instance *hosstedcomv1.Ho
 		OrgID:       os.Getenv("HOSSTED_ORG_ID"),
 		ContextName: os.Getenv("CONTEXT_NAME"),
 		OptionsState: struct {
-			Monitoring bool `json:"monitoring"`
-		}{Monitoring: instance.Spec.Monitoring.Enable},
+			Monitoring bool `json:"monitoring_enabled"`
+			Logging    bool `json:"logging_enabled"`
+			CVE        bool `json:"cve_scan_enabled"`
+		}{
+			Monitoring: instance.Spec.Monitoring.Enable,
+			Logging:    instance.Spec.Logging.Enable,
+			CVE:        instance.Spec.CVE.Enable,
+		},
 	}
 
 	body, err := json.Marshal(clusterUUIDBodyReq)

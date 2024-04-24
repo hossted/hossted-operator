@@ -25,6 +25,7 @@ type HosstedprojectSpec struct {
 	Stop           bool       `json:"stop,omitempty"`
 	Monitoring     Monitoring `json:"monitoring,omitempty"`
 	CVE            CVE        `json:"cve,omitempty"`
+	Logging        Logging    `json:"logging,omitempty"`
 	DenyNamespaces []string   `json:"denyNamespaces,omitempty"`
 }
 
@@ -34,6 +35,11 @@ type Monitoring struct {
 }
 
 type CVE struct {
+	// +kubebuilder:default:=false
+	Enable bool `json:"enable,omitempty"`
+}
+
+type Logging struct {
 	// +kubebuilder:default:=false
 	Enable bool `json:"enable,omitempty"`
 }

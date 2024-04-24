@@ -13,6 +13,8 @@ spec:
     enable: {{ .Values.cve.enable }}
   monitoring:
     enable: {{ .Values.monitoring.enable }}
+  logging:
+    enable: {{ .Values.logging.enable }}
   denyNamespaces: 
   - kube-system
   - local-path-storage
