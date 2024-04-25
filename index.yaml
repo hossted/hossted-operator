@@ -3,7 +3,7 @@ entries:
   hossted-grafana-agent:
   - apiVersion: v2
     appVersion: "8.0"
-    created: "2024-04-24T15:22:24.39603099+05:30"
+    created: "2024-04-25T06:24:43.89563028+05:30"
     dependencies:
     - condition: grafana-agent.enabled
       name: grafana-agent
@@ -17,7 +17,7 @@ entries:
     version: "8.0"
   - apiVersion: v2
     appVersion: "7.0"
-    created: "2024-04-24T15:22:24.392420974+05:30"
+    created: "2024-04-25T06:24:43.889803824+05:30"
     dependencies:
     - condition: grafana-agent.enabled
       name: grafana-agent
@@ -31,7 +31,7 @@ entries:
     version: "7.0"
   - apiVersion: v2
     appVersion: "6.0"
-    created: "2024-04-24T15:22:24.389175351+05:30"
+    created: "2024-04-25T06:24:43.884755295+05:30"
     dependencies:
     - condition: grafana-agent.enabled
       name: grafana-agent
@@ -45,7 +45,7 @@ entries:
     version: "6.0"
   - apiVersion: v2
     appVersion: "5.0"
-    created: "2024-04-24T15:22:24.385912143+05:30"
+    created: "2024-04-25T06:24:43.880934957+05:30"
     dependencies:
     - condition: grafana-agent.enabled
       name: grafana-agent
@@ -59,7 +59,7 @@ entries:
     version: "5.0"
   - apiVersion: v2
     appVersion: "4.0"
-    created: "2024-04-24T15:22:24.383916923+05:30"
+    created: "2024-04-25T06:24:43.87606719+05:30"
     dependencies:
     - condition: grafana-agent.enabled
       name: grafana-agent
@@ -73,7 +73,7 @@ entries:
     version: "4.0"
   - apiVersion: v2
     appVersion: "3.0"
-    created: "2024-04-24T15:22:24.382393571+05:30"
+    created: "2024-04-25T06:24:43.874551714+05:30"
     dependencies:
     - condition: grafana-agent.enabled
       name: grafana-agent
@@ -87,7 +87,7 @@ entries:
     version: "3.0"
   - apiVersion: v2
     appVersion: "2.0"
-    created: "2024-04-24T15:22:24.380842561+05:30"
+    created: "2024-04-25T06:24:43.872874711+05:30"
     dependencies:
     - condition: grafana-agent.enabled
       name: grafana-agent
@@ -101,7 +101,7 @@ entries:
     version: "2.0"
   - apiVersion: v2
     appVersion: "1.0"
-    created: "2024-04-24T15:22:24.379552327+05:30"
+    created: "2024-04-25T06:24:43.871570029+05:30"
     dependencies:
     - condition: grafana-agent.enabled
       name: grafana-agent
@@ -115,10 +115,10 @@ entries:
     version: "1.0"
   hossted-operator:
   - apiVersion: v2
-    appVersion: 0.0.3
-    created: "2024-04-24T15:22:24.399534174+05:30"
+    appVersion: 0.1.0
+    created: "2024-04-25T06:24:43.900397033+05:30"
     description: A Helm chart for Kubernetes
-    digest: 4bedcea50f63f15f3cf7f8a816a250d6ed3c7b1914b4e2bf4896e65274879065
+    digest: 44dfb1763eeab9e9e6b8193f2dfd7d768a0ea23baaae003dbd02c19ccd507a88
     name: hossted-operator
     type: application
     urls:
@@ -126,7 +126,7 @@ entries:
     version: 0.1.0
   - apiVersion: v2
     appVersion: 0.0.2
-    created: "2024-04-24T15:22:24.399253658+05:30"
+    created: "2024-04-25T06:24:43.89992912+05:30"
     description: A Helm chart for Kubernetes
     digest: fcfb5c235803c0aade3da746302105e15b77e3825527ea914eb3fa996d34cf53
     name: hossted-operator
@@ -136,7 +136,7 @@ entries:
     version: 0.0.9
   - apiVersion: v2
     appVersion: 0.0.2
-    created: "2024-04-24T15:22:24.399009915+05:30"
+    created: "2024-04-25T06:24:43.899515324+05:30"
     description: A Helm chart for Kubernetes
     digest: 3aefc7f8767911d5186f3ff9c102ca9b2170428cf7ad035372677f173c21830c
     name: hossted-operator
@@ -146,7 +146,7 @@ entries:
     version: 0.0.8
   - apiVersion: v2
     appVersion: 0.0.1
-    created: "2024-04-24T15:22:24.39874394+05:30"
+    created: "2024-04-25T06:24:43.89906954+05:30"
     description: A Helm chart for Kubernetes
     digest: 1cadb97a688a2f3b70e4b7f5a6753de9ff79423395efaac0aea845955622c80f
     name: hossted-operator
@@ -156,7 +156,7 @@ entries:
     version: 0.0.7
   - apiVersion: v2
     appVersion: 0.0.1.beta.9
-    created: "2024-04-24T15:22:24.398470897+05:30"
+    created: "2024-04-25T06:24:43.898636174+05:30"
     description: A Helm chart for Kubernetes
     digest: 4e2a43f0f32a24934cfb3a4ea3c9176903447dd5f22de819daade3a89e7ba56b
     name: hossted-operator
@@ -166,7 +166,7 @@ entries:
     version: 0.0.6
   - apiVersion: v2
     appVersion: 0.0.1.beta.8
-    created: "2024-04-24T15:22:24.398201278+05:30"
+    created: "2024-04-25T06:24:43.898185084+05:30"
     description: A Helm chart for Kubernetes
     digest: 5800f9f8567fa0d91bf38f87cac40eec35cf13aabdb08f75a533c1f293ec7e26
     name: hossted-operator
@@ -176,7 +176,7 @@ entries:
     version: 0.0.5
   - apiVersion: v2
     appVersion: 0.0.1.beta.7
-    created: "2024-04-24T15:22:24.39792631+05:30"
+    created: "2024-04-25T06:24:43.897696577+05:30"
     description: A Helm chart for Kubernetes
     digest: 06efff2548c4fb09c920a65d8711af6b27d4cf5a7957be85aa882c9bcaa35444
     name: hossted-operator
@@ -186,7 +186,7 @@ entries:
     version: 0.0.4
   - apiVersion: v2
     appVersion: 0.0.1.beta.6.1
-    created: "2024-04-24T15:22:24.397622211+05:30"
+    created: "2024-04-25T06:24:43.897215837+05:30"
     description: A Helm chart for Kubernetes
     digest: e89db5e3f95bf3c28258852a45af558f77cf000eda5fe3c7512e3fd96cc8499b
     name: hossted-operator
@@ -196,7 +196,7 @@ entries:
     version: 0.0.3
   - apiVersion: v2
     appVersion: 0.0.1.beta.5
-    created: "2024-04-24T15:22:24.396907672+05:30"
+    created: "2024-04-25T06:24:43.896686059+05:30"
     description: A Helm chart for Kubernetes
     digest: 539bcc17c13b5db503ee4c8e5761a86e11075ea6b6503ada77ce93652f404ef7
     name: hossted-operator
@@ -206,7 +206,7 @@ entries:
     version: 0.0.2
   - apiVersion: v2
     appVersion: 0.0.1.beta.5
-    created: "2024-04-24T15:22:24.396480162+05:30"
+    created: "2024-04-25T06:24:43.896212428+05:30"
     description: A Helm chart for Kubernetes
     digest: cf1fd7a21da66379940105b026947094f8aaf1f7540d8b50fe5d59ae649461a7
     name: hossted-operator
@@ -214,4 +214,4 @@ entries:
     urls:
     - https://charts.hossted.com/helm-releases/hossted-operator-0.0.1.tgz
     version: 0.0.1
-generated: "2024-04-24T15:22:24.377161067+05:30"
+generated: "2024-04-25T06:24:43.869796443+05:30"
