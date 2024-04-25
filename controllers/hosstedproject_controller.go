@@ -263,6 +263,10 @@ func (r *HosstedProjectReconciler) registerClusterUUID(instance *hosstedcomv1.Ho
 // enable monitoring using grafana-agent.
 func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instance *hosstedcomv1.Hosstedproject) error {
 	// Helm configuration for Grafana Agent
+	enableLog := "false"
+	if instance.Spec.Logging.Enable {
+		enableLog = "true"
+	}
 	h := helm.Helm{
 		ChartName: "hossted-grafana-agent",
 		RepoName:  "grafana",
@@ -271,6 +275,7 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 		Values: []string{
 			"mimir_pwd=" + os.Getenv("MIMIR_PASSWORD"),
 			"uuid=" + instance.Status.ClusterUUID,
+			"logging.enabled=" + enableLog,
 		},
 	}
 
@@ -297,13 +302,13 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 			// install kubestate metrics
 			// Install Grafana Agent
 			err = helm.Apply(h)
-			// if err != nil {
-			// 	return fmt.Errorf("enabling grafana-agent for monitoring failed %w", err)
-			// }
+			if err != nil {
+				fmt.Println("grafana-agent for monitoring failed %w", err)
+			}
 			err = helm.Apply(ksm)
-			// if err != nil {
-			// 	return fmt.Errorf("enabling grafana-agent for monitoring failed %w", err)
-			// }
+			if err != nil {
+				fmt.Println("ksm-agent for monitoring failed %w", err)
+			}
 			return nil
 		}
 
