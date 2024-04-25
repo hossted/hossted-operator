@@ -47,6 +47,12 @@ spec:
                 items:
                   type: string
                 type: array
+              logging:
+                properties:
+                  enable:
+                    default: false
+                    type: boolean
+                type: object
               monitoring:
                 properties:
                   enable:

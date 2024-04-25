@@ -14,6 +14,8 @@ cve:
   enable: true
 monitoring:
   enable: true
+logging:
+  enable: false
 
 nameOverride: hossted
 
