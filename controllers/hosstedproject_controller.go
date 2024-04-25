@@ -267,7 +267,7 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 		ChartName: "hossted-grafana-agent",
 		RepoName:  "grafana",
 		RepoUrl:   "https://charts.hossted.com",
-		Namespace: "hossted-operator",
+		Namespace: "hossted-platform",
 		Values: []string{
 			"mimir_pwd=" + os.Getenv("MIMIR_PASSWORD"),
 			"uuid=" + instance.Status.ClusterUUID,
@@ -278,7 +278,7 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 		ChartName: "kube-state-metrics",
 		RepoName:  "grafana",
 		RepoUrl:   "https://prometheus-community.github.io/helm-charts",
-		Namespace: "hossted-operator",
+		Namespace: "hossted-platform",
 		Values: []string{
 			"selfMonitor.enabled=true",
 		},
