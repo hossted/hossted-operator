@@ -3,7 +3,7 @@ entries:
   hossted-grafana-agent:
   - apiVersion: v2
     appVersion: "9.0"
-    created: "2024-04-25T07:00:03.16267+05:30"
+    created: "2024-04-25T18:24:29.746099+05:30"
     dependencies:
     - condition: grafana-agent.enabled
       name: grafana-agent
@@ -17,7 +17,7 @@ entries:
     version: "9.0"
   - apiVersion: v2
     appVersion: "8.0"
-    created: "2024-04-25T07:00:03.158487+05:30"
+    created: "2024-04-25T18:24:29.743534+05:30"
     dependencies:
     - condition: grafana-agent.enabled
       name: grafana-agent
@@ -31,7 +31,7 @@ entries:
     version: "8.0"
   - apiVersion: v2
     appVersion: "7.0"
-    created: "2024-04-25T07:00:03.155896+05:30"
+    created: "2024-04-25T18:24:29.740538+05:30"
     dependencies:
     - condition: grafana-agent.enabled
       name: grafana-agent
@@ -45,7 +45,7 @@ entries:
     version: "7.0"
   - apiVersion: v2
     appVersion: "6.0"
-    created: "2024-04-25T07:00:03.153506+05:30"
+    created: "2024-04-25T18:24:29.73722+05:30"
     dependencies:
     - condition: grafana-agent.enabled
       name: grafana-agent
@@ -59,7 +59,7 @@ entries:
     version: "6.0"
   - apiVersion: v2
     appVersion: "5.0"
-    created: "2024-04-25T07:00:03.149917+05:30"
+    created: "2024-04-25T18:24:29.735022+05:30"
     dependencies:
     - condition: grafana-agent.enabled
       name: grafana-agent
@@ -73,7 +73,7 @@ entries:
     version: "5.0"
   - apiVersion: v2
     appVersion: "4.0"
-    created: "2024-04-25T07:00:03.148179+05:30"
+    created: "2024-04-25T18:24:29.732938+05:30"
     dependencies:
     - condition: grafana-agent.enabled
       name: grafana-agent
@@ -87,7 +87,7 @@ entries:
     version: "4.0"
   - apiVersion: v2
     appVersion: "3.0"
-    created: "2024-04-25T07:00:03.146688+05:30"
+    created: "2024-04-25T18:24:29.731333+05:30"
     dependencies:
     - condition: grafana-agent.enabled
       name: grafana-agent
@@ -101,7 +101,7 @@ entries:
     version: "3.0"
   - apiVersion: v2
     appVersion: "2.0"
-    created: "2024-04-25T07:00:03.144875+05:30"
+    created: "2024-04-25T18:24:29.728199+05:30"
     dependencies:
     - condition: grafana-agent.enabled
       name: grafana-agent
@@ -115,14 +115,14 @@ entries:
     version: "2.0"
   - apiVersion: v2
     appVersion: "1.0"
-    created: "2024-04-25T07:00:03.143596+05:30"
+    created: "2024-04-25T18:24:29.726746+05:30"
     dependencies:
     - condition: grafana-agent.enabled
       name: grafana-agent
       repository: https://grafana.github.io/helm-charts
-      version: 0.31.1
+      version: 0.37.0
     description: Chart for Hossted Grafana Agent
-    digest: 59f73402a8cbee84c2a4c4957a1ef5e02e3785f21ae6c9559c42bbad16bd8f75
+    digest: 67c750cebf8e316fb5c8f5c99d22a9b10257fd2749b10186e24f36a73c319f32
     name: hossted-grafana-agent
     urls:
     - https://charts.hossted.com/helm-releases/hossted-grafana-agent-1.0.tgz
@@ -130,7 +130,7 @@ entries:
   hossted-operator:
   - apiVersion: v2
     appVersion: 0.1.0
-    created: "2024-04-25T07:00:03.165849+05:30"
+    created: "2024-04-25T18:24:29.750449+05:30"
     description: A Helm chart for Kubernetes
     digest: 44dfb1763eeab9e9e6b8193f2dfd7d768a0ea23baaae003dbd02c19ccd507a88
     name: hossted-operator
@@ -140,7 +140,7 @@ entries:
     version: 0.1.0
   - apiVersion: v2
     appVersion: 0.0.2
-    created: "2024-04-25T07:00:03.165532+05:30"
+    created: "2024-04-25T18:24:29.750133+05:30"
     description: A Helm chart for Kubernetes
     digest: fcfb5c235803c0aade3da746302105e15b77e3825527ea914eb3fa996d34cf53
     name: hossted-operator
@@ -150,7 +150,7 @@ entries:
     version: 0.0.9
   - apiVersion: v2
     appVersion: 0.0.2
-    created: "2024-04-25T07:00:03.165224+05:30"
+    created: "2024-04-25T18:24:29.749708+05:30"
     description: A Helm chart for Kubernetes
     digest: 3aefc7f8767911d5186f3ff9c102ca9b2170428cf7ad035372677f173c21830c
     name: hossted-operator
@@ -160,7 +160,7 @@ entries:
     version: 0.0.8
   - apiVersion: v2
     appVersion: 0.0.1
-    created: "2024-04-25T07:00:03.164904+05:30"
+    created: "2024-04-25T18:24:29.749303+05:30"
     description: A Helm chart for Kubernetes
     digest: 1cadb97a688a2f3b70e4b7f5a6753de9ff79423395efaac0aea845955622c80f
     name: hossted-operator
@@ -170,7 +170,7 @@ entries:
     version: 0.0.7
   - apiVersion: v2
     appVersion: 0.0.1.beta.9
-    created: "2024-04-25T07:00:03.164573+05:30"
+    created: "2024-04-25T18:24:29.748972+05:30"
     description: A Helm chart for Kubernetes
     digest: 4e2a43f0f32a24934cfb3a4ea3c9176903447dd5f22de819daade3a89e7ba56b
     name: hossted-operator
@@ -180,7 +180,7 @@ entries:
     version: 0.0.6
   - apiVersion: v2
     appVersion: 0.0.1.beta.8
-    created: "2024-04-25T07:00:03.164242+05:30"
+    created: "2024-04-25T18:24:29.74863+05:30"
     description: A Helm chart for Kubernetes
     digest: 5800f9f8567fa0d91bf38f87cac40eec35cf13aabdb08f75a533c1f293ec7e26
     name: hossted-operator
@@ -190,7 +190,7 @@ entries:
     version: 0.0.5
   - apiVersion: v2
     appVersion: 0.0.1.beta.7
-    created: "2024-04-25T07:00:03.163926+05:30"
+    created: "2024-04-25T18:24:29.748305+05:30"
     description: A Helm chart for Kubernetes
     digest: 06efff2548c4fb09c920a65d8711af6b27d4cf5a7957be85aa882c9bcaa35444
     name: hossted-operator
@@ -200,7 +200,7 @@ entries:
     version: 0.0.4
   - apiVersion: v2
     appVersion: 0.0.1.beta.6.1
-    created: "2024-04-25T07:00:03.163595+05:30"
+    created: "2024-04-25T18:24:29.747975+05:30"
     description: A Helm chart for Kubernetes
     digest: e89db5e3f95bf3c28258852a45af558f77cf000eda5fe3c7512e3fd96cc8499b
     name: hossted-operator
@@ -210,7 +210,7 @@ entries:
     version: 0.0.3
   - apiVersion: v2
     appVersion: 0.0.1.beta.5
-    created: "2024-04-25T07:00:03.163299+05:30"
+    created: "2024-04-25T18:24:29.747554+05:30"
     description: A Helm chart for Kubernetes
     digest: 539bcc17c13b5db503ee4c8e5761a86e11075ea6b6503ada77ce93652f404ef7
     name: hossted-operator
@@ -220,7 +220,7 @@ entries:
     version: 0.0.2
   - apiVersion: v2
     appVersion: 0.0.1.beta.5
-    created: "2024-04-25T07:00:03.163017+05:30"
+    created: "2024-04-25T18:24:29.746545+05:30"
     description: A Helm chart for Kubernetes
     digest: cf1fd7a21da66379940105b026947094f8aaf1f7540d8b50fe5d59ae649461a7
     name: hossted-operator
@@ -228,4 +228,4 @@ entries:
     urls:
     - https://charts.hossted.com/helm-releases/hossted-operator-0.0.1.tgz
     version: 0.0.1
-generated: "2024-04-25T07:00:03.140583+05:30"
+generated: "2024-04-25T18:24:29.72425+05:30"
