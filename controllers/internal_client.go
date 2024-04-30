@@ -71,6 +71,23 @@ func (r *HosstedProjectReconciler) listServices(ctx context.Context, namespace s
 	return serviceList, nil
 }
 
+// listServices lists services in a given namespace with specific labels.
+func (r *HosstedProjectReconciler) listConfigmap(ctx context.Context, namespace string, labels map[string]string) (*corev1.ConfigMapList, error) {
+	configmapList := &corev1.ConfigMapList{}
+
+	listOpts := []client.ListOption{
+		client.InNamespace(namespace),
+		client.MatchingLabels(labels),
+	}
+
+	err := r.Client.List(ctx, configmapList, listOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return configmapList, nil
+}
+
 // listVolumes lists volumes in a given namespace with specific labels.
 func (r *HosstedProjectReconciler) listVolumes(ctx context.Context, namespace string, labels map[string]string) (*corev1.PersistentVolumeClaimList, error) {
 	pvcList := &corev1.PersistentVolumeClaimList{}

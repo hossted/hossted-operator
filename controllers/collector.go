@@ -21,12 +21,14 @@ type Collector struct {
 }
 
 type AppInfo struct {
-	HelmInfo     hosstedcomv1.HelmInfo `json:"helm_info"`
-	PodInfo      []PodInfo             `json:"pod_info"`
-	ServiceInfo  []ServiceInfo         `json:"service_info"`
-	VolumeInfo   []VolumeInfo          `json:"volume_info"`
-	IngressInfo  []IngressInfo         `json:"ingress_info"`
-	SecurityInfo []SecurityInfo        `json:"security_info"`
+	HelmInfo      hosstedcomv1.HelmInfo `json:"helm_info"`
+	PodInfo       []PodInfo             `json:"pod_info"`
+	ServiceInfo   []ServiceInfo         `json:"service_info"`
+	VolumeInfo    []VolumeInfo          `json:"volume_info"`
+	IngressInfo   []IngressInfo         `json:"ingress_info"`
+	ConfigmapInfo []ConfigmapInfo       `json:"configmap_info"`
+	HelmValueInfo HelmValueInfo         `json:"helmvalue_info"`
+	SecurityInfo  []SecurityInfo        `json:"security_info"`
 }
 
 // AppAPIInfo contains basic information about the application API.
@@ -64,6 +66,16 @@ type VolumeInfo struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
 	Size      int    `json:"size"`
+}
+
+type ConfigmapInfo struct {
+	Name string            `json:"name"`
+	Data map[string]string `json:"data"`
+}
+
+type HelmValueInfo struct {
+	ChartName   string                 `json:"chart_name"`
+	ChartValues map[string]interface{} `json:"chart_values"`
 }
 
 type SecurityInfo struct {
@@ -109,12 +121,14 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 		// Initialize a slice to collect HelmInfo structs for this iteration
 
 		var (
-			helmInfo       hosstedcomv1.HelmInfo
-			podHolder      []PodInfo
-			svcHolder      []ServiceInfo
-			pvcHolder      []VolumeInfo
-			ingHolder      []IngressInfo
-			securityHolder []SecurityInfo
+			helmInfo        hosstedcomv1.HelmInfo
+			podHolder       []PodInfo
+			svcHolder       []ServiceInfo
+			pvcHolder       []VolumeInfo
+			ingHolder       []IngressInfo
+			securityHolder  []SecurityInfo
+			configmapHolder []ConfigmapInfo
+			helmvalueHolder HelmValueInfo
 		)
 		for _, release := range releases {
 			helmInfo, err = r.getHelmInfo(*release, instance)
@@ -148,16 +162,26 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			if err != nil {
 				return nil, nil, nil, err
 			}
+			configmapHolder, err = r.getConfigmaps(ctx, release.Namespace, release.Name)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			helmvalueHolder, err = r.getHelmInfoValues(release.Name, release.Namespace)
+			if err != nil {
+				return nil, nil, nil, err
+			}
 			revisions = append(revisions, helmInfo.Revision)
 
 			// After collecting all HelmInfo structs for this iteration, assign to instance.Status.HelmStatus
 			appInfo := AppInfo{
-				HelmInfo:     helmInfo,
-				PodInfo:      podHolder,
-				ServiceInfo:  svcHolder,
-				VolumeInfo:   pvcHolder,
-				IngressInfo:  ingHolder,
-				SecurityInfo: securityHolder,
+				HelmInfo:      helmInfo,
+				PodInfo:       podHolder,
+				ServiceInfo:   svcHolder,
+				VolumeInfo:    pvcHolder,
+				IngressInfo:   ingHolder,
+				ConfigmapInfo: configmapHolder,
+				HelmValueInfo: helmvalueHolder,
+				SecurityInfo:  securityHolder,
 			}
 
 			collector := &Collector{
@@ -192,6 +216,18 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 // listReleases retrieves all Helm releases in the specified namespace.
 func (r *HosstedProjectReconciler) listReleases(namespace string) ([]*helmrelease.Release, error) {
 	return helm.ListReleases(namespace)
+}
+
+// listReleases retrieves all Helm releases in the specified namespace.
+func (r *HosstedProjectReconciler) getHelmInfoValues(name, namespace string) (HelmValueInfo, error) {
+	values, err := helm.GetReleaseValues(name, namespace)
+	if err != nil {
+		return HelmValueInfo{}, err
+	}
+	return HelmValueInfo{
+		ChartName:   name,
+		ChartValues: values,
+	}, nil
 }
 
 // getPods retrieves pods for a given release in the specified namespace.
@@ -273,6 +309,28 @@ func (r *HosstedProjectReconciler) getServices(ctx context.Context, namespace, r
 	}
 
 	return svcHolder, nil
+}
+
+// getConfigmap retrieves services for a given release in the specified namespace.
+func (r *HosstedProjectReconciler) getConfigmaps(ctx context.Context, namespace, releaseName string) ([]ConfigmapInfo, error) {
+	cms, err := r.listConfigmap(ctx, namespace, map[string]string{
+		"app.kubernetes.io/instance":   releaseName,
+		"app.kubernetes.io/managed-by": "Helm",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var cmHolder []ConfigmapInfo
+	for _, cm := range cms.Items {
+		svcInfo := ConfigmapInfo{
+			Name: cm.Name,
+			Data: cm.Data,
+		}
+		cmHolder = append(cmHolder, svcInfo)
+	}
+
+	return cmHolder, nil
 }
 
 // getVolumes retrieves volumes for a given release in the specified namespace.
