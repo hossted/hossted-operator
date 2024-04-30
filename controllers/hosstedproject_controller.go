@@ -223,9 +223,9 @@ func (r *HosstedProjectReconciler) registerClusterUUID(instance *hosstedcomv1.Ho
 		OrgID        string `json:"org_id"`
 		ContextName  string `json:"context_name"`
 		OptionsState struct {
-			Monitoring bool `json:"monitoring_enabled"`
-			Logging    bool `json:"logging_enabled"`
-			CVE        bool `json:"cve_scan_enabled"`
+			Monitoring bool `json:"monitoring"`
+			Logging    bool `json:"logging"`
+			CVE        bool `json:"cve_scan"`
 		} `json:"options_state"`
 	}
 
@@ -235,9 +235,9 @@ func (r *HosstedProjectReconciler) registerClusterUUID(instance *hosstedcomv1.Ho
 		OrgID:       os.Getenv("HOSSTED_ORG_ID"),
 		ContextName: os.Getenv("CONTEXT_NAME"),
 		OptionsState: struct {
-			Monitoring bool `json:"monitoring_enabled"`
-			Logging    bool `json:"logging_enabled"`
-			CVE        bool `json:"cve_scan_enabled"`
+			Monitoring bool `json:"monitoring"`
+			Logging    bool `json:"logging"`
+			CVE        bool `json:"cve_scan"`
 		}{
 			Monitoring: instance.Spec.Monitoring.Enable,
 			Logging:    instance.Spec.Logging.Enable,
