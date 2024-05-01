@@ -15,7 +15,8 @@ spec:
     enable: {{ .Values.monitoring.enable }}
   logging:
     enable: {{ .Values.logging.enable }}
-  denyNamespaces: 
+  denyNamespaces:
+  - hossted-platform
   - kube-system
   - local-path-storage
   - kube-node-lease
