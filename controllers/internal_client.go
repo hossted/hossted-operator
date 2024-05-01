@@ -153,3 +153,17 @@ func (r *HosstedProjectReconciler) patchStatus(ctx context.Context, obj client.O
 	}
 	return obj, VerbPatched, nil
 }
+
+// getconfigmap gets configmap in a given namespace with specific labels.
+func (r *HosstedProjectReconciler) getConfigmap(ctx context.Context, name, namespace string) (*corev1.ConfigMap, error) {
+	getConfigmap := &corev1.ConfigMap{}
+
+	err := r.Client.Get(ctx, types.NamespacedName{
+		Name:      name,
+		Namespace: namespace,
+	}, getConfigmap, &client.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return getConfigmap, nil
+}

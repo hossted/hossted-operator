@@ -15,6 +15,7 @@ import (
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
 	helm "github.com/hossted/hossted-operator/pkg/helm"
 	internalHTTP "github.com/hossted/hossted-operator/pkg/http"
+	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -162,10 +163,15 @@ func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instanc
 
 // handleExistingCluster handles reconciliation for an existing cluster.
 func (r *HosstedProjectReconciler) handleExistingCluster(ctx context.Context, instance *hosstedcomv1.Hosstedproject, collector []*Collector, currentRevision []int, helmStatus []hosstedcomv1.HelmInfo, logger logr.Logger) error {
+	fmt.Println("------------ handleExistingCluster ---------------")
 	if !compareSlices(instance.Status.Revision, currentRevision) {
-		if err := r.registerApps(instance, collector, logger); err != nil {
-			return err
-		}
+		_ = r.registerApps(instance, collector, logger)
+		// if err := r.registerApps(instance, collector, logger); err != nil {
+		// 	return err
+		// }
+
+		// for error case we are not updating the status.
+		fmt.Println("------------ handleExistingCluster  completed update status ---------------")
 
 		// Update instance status
 		instance.Status.HelmStatus = helmStatus
@@ -185,9 +191,335 @@ func (r *HosstedProjectReconciler) handleExistingCluster(ctx context.Context, in
 		return err
 	}
 
+	err = r.handleGfaConfig(ctx, instance)
+	if err != nil {
+		return err
+	}
+
 	logger.Info("No state change detected, requeueing")
 	return nil
 }
+
+func (r *HosstedProjectReconciler) handleGfaConfig(ctx context.Context, instance *hosstedcomv1.Hosstedproject) error {
+	type ScrapeConfigs struct {
+		JobName             string `yaml:"job_name"`
+		KubernetesSdConfigs []struct {
+			Role string `yaml:"role"`
+		} `yaml:"kubernetes_sd_configs"`
+		MetricRelabelConfigs []struct {
+			SourceLabels []string `yaml:"source_labels"`
+			Regex        string   `yaml:"regex"`
+			Action       string   `yaml:"action"`
+		} `yaml:"metric_relabel_configs"`
+		RelabelConfigs []struct {
+			Action       string   `yaml:"action"`
+			Regex        string   `yaml:"regex"`
+			SourceLabels []string `yaml:"source_labels"`
+			TargetLabel  string   `yaml:"target_label,omitempty"`
+			Replacement  string   `yaml:"replacement,omitempty"`
+		} `yaml:"relabel_configs"`
+	}
+
+	type Gfconfig struct {
+		Server struct {
+			LogLevel string `yaml:"log_level"`
+		} `yaml:"server"`
+		Logs struct {
+			Configs []struct {
+				Name    string `yaml:"name"`
+				Clients []struct {
+					URL       string `yaml:"url"`
+					BasicAuth struct {
+						Username string `yaml:"username"`
+						Password string `yaml:"password"`
+					} `yaml:"basic_auth"`
+					ExternalLabels map[string]string `yaml:"external_labels"`
+				} `yaml:"clients"`
+				Positions struct {
+					Filename string `yaml:"filename"`
+				} `yaml:"positions"`
+				TargetConfig struct {
+					SyncPeriod string `yaml:"sync_period"`
+				} `yaml:"target_config"`
+				ScrapeConfigs []ScrapeConfigs `yaml:"scrape_configs"`
+			} `yaml:"configs"`
+		} `yaml:"logs"`
+		Metrics struct {
+			WalDirectory string `yaml:"wal_directory"`
+			Global       struct {
+				ScrapeInterval string            `yaml:"scrape_interval"`
+				ExternalLabels map[string]string `yaml:"external_labels"`
+			} `yaml:"global"`
+			Configs []struct {
+				Name        string `yaml:"name"`
+				RemoteWrite []struct {
+					URL       string `yaml:"url"`
+					BasicAuth struct {
+						Username string `yaml:"username"`
+						Password string `yaml:"password"`
+					} `yaml:"basic_auth"`
+				} `yaml:"remote_write"`
+				ScrapeConfigs []ScrapeConfigs `yaml:"scrape_configs"`
+			} `yaml:"configs"`
+		} `yaml:"metrics"`
+	}
+
+	var allScrapConfig []ScrapeConfigs
+
+	config, err := r.getConfigmap(ctx, "hossted-grafana-agent-configmap", "hossted-platform")
+	if err != nil {
+		return err
+	}
+
+	var configstruct Gfconfig
+
+	err = yaml.Unmarshal([]byte(config.Data["config.yaml"]), &configstruct)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal config.yaml: %w", err)
+	}
+
+	// Store existing scrape configurations
+	existingScrapeConfigs := configstruct.Metrics.Configs[0].ScrapeConfigs
+
+	for _, status := range instance.Status.HelmStatus {
+		scrapeConfig := ScrapeConfigs{
+			JobName: status.Name,
+			KubernetesSdConfigs: []struct {
+				Role string `yaml:"role"`
+			}{
+				{Role: "pod"},
+			},
+			RelabelConfigs: []struct {
+				Action       string   `yaml:"action"`
+				Regex        string   `yaml:"regex"`
+				SourceLabels []string `yaml:"source_labels"`
+				TargetLabel  string   `yaml:"target_label,omitempty"`
+				Replacement  string   `yaml:"replacement,omitempty"`
+			}{
+				{
+					Action:       "keep",
+					Regex:        status.Name,
+					SourceLabels: []string{"__meta_kubernetes_pod_label_app_kubernetes_io_instance"},
+				},
+				{
+					Action:       "replace",
+					Regex:        status.Name,
+					SourceLabels: []string{"__meta_kubernetes_pod_label_app_kubernetes_io_instance"},
+					TargetLabel:  "app_uuid",
+					Replacement:  status.AppUUID,
+				},
+			},
+		}
+		allScrapConfig = append(allScrapConfig, scrapeConfig)
+	}
+
+	// Merge existing and new scrape configurations
+	allScrapConfig = append(existingScrapeConfigs, allScrapConfig...)
+
+	// Replace the scrape configurations with the merged ones
+	configstruct.Metrics.Configs[0].ScrapeConfigs = allScrapConfig
+
+	fmt.Println(configstruct.Metrics.Configs[0].ScrapeConfigs)
+
+	data, _ := yaml.Marshal(configstruct)
+	fmt.Println(string(data))
+
+	return nil
+}
+
+// func (r *HosstedProjectReconciler) handleGfaConfig(ctx context.Context, instance *hosstedcomv1.Hosstedproject) error {
+
+// 	type ScrapeConfigs struct {
+// 		JobName             string `yaml:"job_name"`
+// 		KubernetesSdConfigs []struct {
+// 			Role string `yaml:"role"`
+// 		} `yaml:"kubernetes_sd_configs"`
+// 		MetricRelabelConfigs []struct {
+// 			SourceLabels []string `yaml:"source_labels"`
+// 			Regex        string   `yaml:"regex"`
+// 			Action       string   `yaml:"action"`
+// 		} `yaml:"metric_relabel_configs"`
+// 		RelabelConfigs []struct {
+// 			Action       string   `yaml:"action"`
+// 			Regex        string   `yaml:"regex"`
+// 			SourceLabels []string `yaml:"source_labels"`
+// 			TargetLabel  string   `json:"target_label"`
+// 			Replacement  string   `json:"replacement"`
+// 		} `yaml:"relabel_configs"`
+// 	}
+
+// 	type Gfconfig struct {
+// 		Server struct {
+// 			LogLevel string `yaml:"log_level"`
+// 		} `yaml:"server"`
+// 		Logs struct {
+// 			Configs []struct {
+// 				Name    string `yaml:"name"`
+// 				Clients []struct {
+// 					URL       string `yaml:"url"`
+// 					BasicAuth struct {
+// 						Username string `yaml:"username"`
+// 						Password string `yaml:"password"`
+// 					} `yaml:"basic_auth"`
+// 					ExternalLabels map[string]string `yaml:"external_labels"`
+// 				} `yaml:"clients"`
+// 				Positions struct {
+// 					Filename string `yaml:"filename"`
+// 				} `yaml:"positions"`
+// 				TargetConfig struct {
+// 					SyncPeriod string `yaml:"sync_period"`
+// 				} `yaml:"target_config"`
+// 				ScrapeConfigs []ScrapeConfigs `yaml:"scrape_configs"`
+// 			} `yaml:"configs"`
+// 		} `yaml:"logs"`
+// 		Metrics struct {
+// 			WalDirectory string `yaml:"wal_directory"`
+// 			Global       struct {
+// 				ScrapeInterval string            `yaml:"scrape_interval"`
+// 				ExternalLabels map[string]string `yaml:"external_labels"`
+// 			} `yaml:"global"`
+// 			Configs []struct {
+// 				Name        string `yaml:"name"`
+// 				RemoteWrite []struct {
+// 					URL       string `yaml:"url"`
+// 					BasicAuth struct {
+// 						Username string `yaml:"username"`
+// 						Password string `yaml:"password"`
+// 					} `yaml:"basic_auth"`
+// 				} `yaml:"remote_write"`
+// 				ScrapeConfigs []ScrapeConfigs `yaml:"scrape_configs"`
+// 			} `yaml:"configs"`
+// 		} `yaml:"metrics"`
+// 	}
+
+// 	var allScrapConfig []ScrapeConfigs
+
+// 	config, err := r.getConfigmap(ctx, "hossted-grafana-agent-configmap", "hossted-platform")
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	var configstruct Gfconfig
+
+// 	err = yaml.Unmarshal([]byte(config.Data["config.yaml"]), &configstruct)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to unmarshal config.yaml: %w", err)
+// 	}
+
+// 	for _, configs := range configstruct.Metrics.Configs {
+// 		allScrapConfig = append(allScrapConfig, configs.ScrapeConfigs...)
+// 	}
+
+// 	for _, status := range instance.Status.HelmStatus {
+// 		scrapeConfig := ScrapeConfigs{
+// 			JobName: status.Name,
+// 			KubernetesSdConfigs: []struct {
+// 				Role string `yaml:"role"`
+// 			}{
+// 				{Role: "pod"},
+// 			},
+// 			RelabelConfigs: []struct {
+// 				Action       string   `yaml:"action"`
+// 				Regex        string   `yaml:"regex"`
+// 				SourceLabels []string `yaml:"source_labels"`
+// 				TargetLabel  string   `json:"target_label"`
+// 				Replacement  string   `json:"replacement"`
+// 			}{
+// 				{
+// 					Action:       "keep",
+// 					Regex:        status.Name,
+// 					SourceLabels: []string{"__meta_kubernetes_pod_label_app_kubernetes_io_instance"},
+// 				},
+// 				{
+// 					Action:       "replace",
+// 					Regex:        status.Name,
+// 					SourceLabels: []string{"__meta_kubernetes_pod_label_app_kubernetes_io_instance"},
+// 					TargetLabel:  "app_uuid",
+// 					Replacement:  status.AppUUID,
+// 				},
+// 			},
+// 		}
+// 		allScrapConfig = append(allScrapConfig, scrapeConfig)
+// 	}
+
+// 	for _, config := range configstruct.Metrics.Configs {
+// 		config.ScrapeConfigs = allScrapConfig
+// 	}
+
+// 	data, _ := yaml.Marshal(configstruct)
+// 	fmt.Println(string(data))
+
+// 	// config, err := r.getConfigmap(ctx, "hossted-grafana-agent-configmap", "hossted-platform")
+// 	// if err != nil {
+// 	// 	return err
+// 	// }
+
+// 	// var configstruct Gfconfig
+
+// 	// err = yaml.Unmarshal([]byte(config.Data["config.yaml"]), &configstruct)
+// 	// if err != nil {
+// 	// 	return fmt.Errorf("failed to unmarshal config.yaml: %w", err)
+// 	// }
+
+// 	// var allScrapeConfig []ScrapeConfigs
+
+// 	// newScrapeConfigs := getNewScrapConfigs()
+// 	//  for _, configs := range configstruct.Metrics.Configs{
+// 	// 	for  range configs.ScrapeConfigs{
+// 	// 		for _, newScrapeConfig := range newScrapeConfigs{
+// 	// 			allScrapeConfig = append(allScrapeConfig, newScrapeConfig)
+// 	// 		}
+
+// 	// 	}
+// 	//  }
+
+// 	return nil
+
+// 	// type GfConfig struct {
+// 	// 	Server struct {
+// 	// 		LogLevel string `yaml:"log_level"`
+// 	// 	} `yaml:"server"`
+// 	// 	Metrics struct {
+// 	// 		WalDirectory string `yaml:"wal_directory"`
+// 	// 		Global       struct {
+// 	// 			ScrapeInterval string            `yaml:"scrape_interval"`
+// 	// 			ExternalLabels map[string]string `yaml:"external_labels"`
+// 	// 			// ExternalLabels struct {
+// 	// 			// 	UUID struct {
+// 	// 			// 		ValuesUUID string `yaml:"uuid"`
+// 	// 			// 	} `yaml:"uuid"`
+// 	// 			// } `yaml:"external_labels"`
+// 	// 		} `yaml:"global"`
+// 	// 		Configs []struct {
+// 	// 			Name        string `yaml:"name"`
+// 	// 			RemoteWrite []struct {
+// 	// 				URL       string `yaml:"url"`
+// 	// 				BasicAuth struct {
+// 	// 					Username string `yaml:"username"`
+// 	// 					Password string `yaml:"password"`
+// 	// 				} `yaml:"basic_auth"`
+// 	// 			} `yaml:"remote_write"`
+// 	// 			ScrapeConfigs []struct {
+// 	// 				JobName             string `yaml:"job_name"`
+// 	// 				KubernetesSdConfigs []struct {
+// 	// 					Role string `yaml:"role"`
+// 	// 				} `yaml:"kubernetes_sd_configs"`
+// 	// 				MetricRelabelConfigs []struct {
+// 	// 					SourceLabels []string `yaml:"source_labels"`
+// 	// 					Regex        string   `yaml:"regex"`
+// 	// 					Action       string   `yaml:"action"`
+// 	// 				} `yaml:"metric_relabel_configs"`
+// 	// 				RelabelConfigs []struct {
+// 	// 					Action       string   `yaml:"action"`
+// 	// 					Regex        string   `yaml:"regex"`
+// 	// 					SourceLabels []string `yaml:"source_labels"`
+// 	// 				} `yaml:"relabel_configs"`
+// 	// 			} `yaml:"scrape_configs"`
+// 	// 		} `yaml:"configs"`
+// 	// 	} `yaml:"metrics"`
+// 	// }
+
+// }
 
 // registerApps registers applications with the Hossted API.
 func (r *HosstedProjectReconciler) registerApps(instance *hosstedcomv1.Hosstedproject, collector []*Collector, logger logr.Logger) error {
@@ -288,7 +620,6 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 			"selfMonitor.enabled=true",
 		},
 	}
-
 	// Check if monitoring is enabled
 	if instance.Spec.Monitoring.Enable {
 		// Check if Grafana Agent release already exists
