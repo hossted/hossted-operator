@@ -185,10 +185,10 @@ entries:
     version: "1.0"
   hossted-operator:
   - apiVersion: v2
-    appVersion: 0.1.2
-    created: "2024-05-05T20:39:31.207446+05:30"
+    appVersion: 0.1.3
+    created: "2024-05-08T19:07:07.503571+05:30"
     description: A Helm chart for Kubernetes
-    digest: 982cd5d18b802acbbdf85933d4637c5ee15c902d6a50e7f452915cb24c4dd2db
+    digest: 663d9e87b801eb85e5cc0e416957dc6ee2dd5caf115f03f1ce91da8ffe269f3d
     name: hossted-operator
     type: application
     urls:
