@@ -4,6 +4,7 @@ import (
 	"context"
 
 	trivy "github.com/aquasecurity/trivy-operator/pkg/apis/aquasecurity/v1alpha1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -52,6 +53,23 @@ func (r *HosstedProjectReconciler) listPods(ctx context.Context, namespace strin
 	}
 
 	return poList, nil
+}
+
+// listDeployments lists deployments in a given namespace with specific labels.
+func (r *HosstedProjectReconciler) listDeployments(ctx context.Context, namespace string, labels map[string]string) (*appsv1.DeploymentList, error) {
+	deployList := &appsv1.DeploymentList{}
+
+	listOpts := []client.ListOption{
+		client.InNamespace(namespace),
+		client.MatchingLabels(labels),
+	}
+
+	err := r.Client.List(ctx, deployList, listOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return deployList, nil
 }
 
 // listServices lists services in a given namespace with specific labels.
