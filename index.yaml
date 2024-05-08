@@ -3,14 +3,14 @@ entries:
   hossted-grafana-agent:
   - apiVersion: v2
     appVersion: "9.5"
-    created: "2024-05-08T21:47:02.00677+05:30"
+    created: "2024-05-08T22:02:40.26506+05:30"
     dependencies:
     - condition: grafana-agent.enabled
       name: grafana-agent
       repository: https://grafana.github.io/helm-charts
       version: 0.37.0
     description: Chart for Hossted Grafana Agent
-    digest: cadac5682015f4706f3f3842aa8e2056a2e6f75f29add3b0e50c69d3800ec57e
+    digest: 24e35a56218e0bd0d2ae2419d01f456fe3c15062ebc34cf5cb1ed0d90534cf81
     name: hossted-grafana-agent
     urls:
     - https://charts.hossted.com/helm-releases/hossted-grafana-agent-9.5.tgz
