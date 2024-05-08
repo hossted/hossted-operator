@@ -22,13 +22,14 @@ type Collector struct {
 
 type AppInfo struct {
 	HelmInfo      hosstedcomv1.HelmInfo `json:"helm_info"`
-	PodInfo       []PodInfo             `json:"pod_info"`
-	ServiceInfo   []ServiceInfo         `json:"service_info"`
-	VolumeInfo    []VolumeInfo          `json:"volume_info"`
-	IngressInfo   []IngressInfo         `json:"ingress_info"`
-	ConfigmapInfo []ConfigmapInfo       `json:"configmap_info"`
-	HelmValueInfo HelmValueInfo         `json:"helmvalue_info"`
-	SecurityInfo  []SecurityInfo        `json:"security_info"`
+	PodInfo        []PodInfo             `json:"pod_info"`
+	DeploymentInfo []DeploymentInfo      `json:"deployment_info"`
+	ServiceInfo    []ServiceInfo         `json:"service_info"`
+	VolumeInfo     []VolumeInfo          `json:"volume_info"`
+	IngressInfo    []IngressInfo         `json:"ingress_info"`
+	ConfigmapInfo  []ConfigmapInfo       `json:"configmap_info"`
+	HelmValueInfo  HelmValueInfo         `json:"helmvalue_info"`
+	SecurityInfo   []SecurityInfo        `json:"security_info"`
 }
 
 // AppAPIInfo contains basic information about the application API.
@@ -62,6 +63,10 @@ type PodInfo struct {
 	Status    string `json:"status"`
 }
 
+type DeploymentInfo struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+}
 type VolumeInfo struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
@@ -121,14 +126,15 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 		// Initialize a slice to collect HelmInfo structs for this iteration
 
 		var (
-			helmInfo        hosstedcomv1.HelmInfo
-			podHolder       []PodInfo
-			svcHolder       []ServiceInfo
-			pvcHolder       []VolumeInfo
-			ingHolder       []IngressInfo
-			securityHolder  []SecurityInfo
-			configmapHolder []ConfigmapInfo
-			helmvalueHolder HelmValueInfo
+			helmInfo         hosstedcomv1.HelmInfo
+			podHolder        []PodInfo
+			svcHolder        []ServiceInfo
+			pvcHolder        []VolumeInfo
+			ingHolder        []IngressInfo
+			securityHolder   []SecurityInfo
+			configmapHolder  []ConfigmapInfo
+			helmvalueHolder  HelmValueInfo
+			deploymentHolder []DeploymentInfo
 		)
 		for _, release := range releases {
 			helmInfo, err = r.getHelmInfo(*release, instance)
@@ -158,6 +164,10 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			if err != nil {
 				return nil, nil, nil, err
 			}
+			deploymentHolder, err = r.getDeployments(ctx, release.Namespace, release.Name)
+			if err != nil {
+				return nil, nil, nil, err
+			}
 			ingHolder, err = r.getIngress(ctx, release.Namespace, release.Name)
 			if err != nil {
 				return nil, nil, nil, err
@@ -174,14 +184,15 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 
 			// After collecting all HelmInfo structs for this iteration, assign to instance.Status.HelmStatus
 			appInfo := AppInfo{
-				HelmInfo:      helmInfo,
-				PodInfo:       podHolder,
-				ServiceInfo:   svcHolder,
-				VolumeInfo:    pvcHolder,
-				IngressInfo:   ingHolder,
-				ConfigmapInfo: configmapHolder,
-				HelmValueInfo: helmvalueHolder,
-				SecurityInfo:  securityHolder,
+				HelmInfo:       helmInfo,
+				PodInfo:        podHolder,
+				DeploymentInfo: deploymentHolder,
+				ServiceInfo:    svcHolder,
+				VolumeInfo:     pvcHolder,
+				IngressInfo:    ingHolder,
+				ConfigmapInfo:  configmapHolder,
+				HelmValueInfo:  helmvalueHolder,
+				SecurityInfo:   securityHolder,
 			}
 
 			collector := &Collector{
@@ -286,6 +297,29 @@ func (r *HosstedProjectReconciler) getPods(ctx context.Context, namespace, relea
 	}
 
 	return podHolder, securityInfoHolder, nil
+}
+
+// getDeployments retrieves deployments for a given release in the specified namespace.
+func (r *HosstedProjectReconciler) getDeployments(ctx context.Context, namespace, releaseName string) ([]DeploymentInfo, error) {
+	deployments, err := r.listDeployments(ctx, namespace, map[string]string{
+		"app.kubernetes.io/instance":   releaseName,
+		"app.kubernetes.io/managed-by": "Helm",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var deploymentHolder []DeploymentInfo
+
+	for _, deploy := range deployments.Items {
+		deploymentInfo := DeploymentInfo{
+			Name:      deploy.Name,
+			Namespace: deploy.Namespace,
+		}
+		deploymentHolder = append(deploymentHolder, deploymentInfo)
+	}
+
+	return deploymentHolder, nil
 }
 
 // getServices retrieves services for a given release in the specified namespace.
