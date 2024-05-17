@@ -1,5 +1,5 @@
 env:
-  HOSSTED_API_URL: "https://api.dev.hossted.com/v1/instances"
+  HOSSTED_API_URL: "https://api.hossted.com/v1/instances"
   EMAIL_ID: "alex@linnovate.net"
   RECONCILE_DURATION: "10s"
   HOSSTED_ORG_ID: "123-123-123-123"
