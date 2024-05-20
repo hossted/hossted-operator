@@ -21,15 +21,16 @@ type Collector struct {
 }
 
 type AppInfo struct {
-	HelmInfo      hosstedcomv1.HelmInfo `json:"helm_info"`
-	PodInfo        []PodInfo             `json:"pod_info"`
-	DeploymentInfo []DeploymentInfo      `json:"deployment_info"`
-	ServiceInfo    []ServiceInfo         `json:"service_info"`
-	VolumeInfo     []VolumeInfo          `json:"volume_info"`
-	IngressInfo    []IngressInfo         `json:"ingress_info"`
-	ConfigmapInfo  []ConfigmapInfo       `json:"configmap_info"`
-	HelmValueInfo  HelmValueInfo         `json:"helmvalue_info"`
-	SecurityInfo   []SecurityInfo        `json:"security_info"`
+	HelmInfo        hosstedcomv1.HelmInfo `json:"helm_info"`
+	PodInfo         []PodInfo             `json:"pod_info"`
+	DeploymentInfo  []DeploymentInfo      `json:"deployment_info"`
+	StatefulsetInfo []StatefulsetInfo     `json:"statefulset_info"`
+	ServiceInfo     []ServiceInfo         `json:"service_info"`
+	VolumeInfo      []VolumeInfo          `json:"volume_info"`
+	IngressInfo     []IngressInfo         `json:"ingress_info"`
+	ConfigmapInfo   []ConfigmapInfo       `json:"configmap_info"`
+	HelmValueInfo   HelmValueInfo         `json:"helmvalue_info"`
+	SecurityInfo    []SecurityInfo        `json:"security_info"`
 }
 
 // AppAPIInfo contains basic information about the application API.
@@ -67,6 +68,12 @@ type DeploymentInfo struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
 }
+
+type StatefulsetInfo struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+}
+
 type VolumeInfo struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
@@ -126,15 +133,16 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 		// Initialize a slice to collect HelmInfo structs for this iteration
 
 		var (
-			helmInfo         hosstedcomv1.HelmInfo
-			podHolder        []PodInfo
-			svcHolder        []ServiceInfo
-			pvcHolder        []VolumeInfo
-			ingHolder        []IngressInfo
-			securityHolder   []SecurityInfo
-			configmapHolder  []ConfigmapInfo
-			helmvalueHolder  HelmValueInfo
-			deploymentHolder []DeploymentInfo
+			helmInfo          hosstedcomv1.HelmInfo
+			podHolder         []PodInfo
+			svcHolder         []ServiceInfo
+			pvcHolder         []VolumeInfo
+			ingHolder         []IngressInfo
+			securityHolder    []SecurityInfo
+			configmapHolder   []ConfigmapInfo
+			helmvalueHolder   HelmValueInfo
+			deploymentHolder  []DeploymentInfo
+			statefulsetHolder []StatefulsetInfo
 		)
 		for _, release := range releases {
 			helmInfo, err = r.getHelmInfo(*release, instance)
@@ -164,6 +172,10 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			if err != nil {
 				return nil, nil, nil, err
 			}
+			statefulsetHolder, err = r.getStatefulsets(ctx, release.Namespace, release.Name)
+			if err != nil {
+				return nil, nil, nil, err
+			}
 			deploymentHolder, err = r.getDeployments(ctx, release.Namespace, release.Name)
 			if err != nil {
 				return nil, nil, nil, err
@@ -184,15 +196,16 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 
 			// After collecting all HelmInfo structs for this iteration, assign to instance.Status.HelmStatus
 			appInfo := AppInfo{
-				HelmInfo:       helmInfo,
-				PodInfo:        podHolder,
-				DeploymentInfo: deploymentHolder,
-				ServiceInfo:    svcHolder,
-				VolumeInfo:     pvcHolder,
-				IngressInfo:    ingHolder,
-				ConfigmapInfo:  configmapHolder,
-				HelmValueInfo:  helmvalueHolder,
-				SecurityInfo:   securityHolder,
+				HelmInfo:        helmInfo,
+				PodInfo:         podHolder,
+				StatefulsetInfo: statefulsetHolder,
+				DeploymentInfo:  deploymentHolder,
+				ServiceInfo:     svcHolder,
+				VolumeInfo:      pvcHolder,
+				IngressInfo:     ingHolder,
+				ConfigmapInfo:   configmapHolder,
+				HelmValueInfo:   helmvalueHolder,
+				SecurityInfo:    securityHolder,
 			}
 
 			collector := &Collector{
@@ -297,6 +310,29 @@ func (r *HosstedProjectReconciler) getPods(ctx context.Context, namespace, relea
 	}
 
 	return podHolder, securityInfoHolder, nil
+}
+
+// getStatefulsets retrieves statefulset for a given release in the specified namespace.
+func (r *HosstedProjectReconciler) getStatefulsets(ctx context.Context, namespace, releaseName string) ([]StatefulsetInfo, error) {
+	statefulsets, err := r.listStatefulsets(ctx, namespace, map[string]string{
+		"app.kubernetes.io/instance":   releaseName,
+		"app.kubernetes.io/managed-by": "Helm",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var statefulsetHolder []StatefulsetInfo
+
+	for _, deploy := range statefulsets.Items {
+		statefulInfo := StatefulsetInfo{
+			Name:      deploy.Name,
+			Namespace: deploy.Namespace,
+		}
+		statefulsetHolder = append(statefulsetHolder, statefulInfo)
+	}
+
+	return statefulsetHolder, nil
 }
 
 // getDeployments retrieves deployments for a given release in the specified namespace.
