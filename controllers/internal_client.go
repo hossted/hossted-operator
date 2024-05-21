@@ -55,6 +55,23 @@ func (r *HosstedProjectReconciler) listPods(ctx context.Context, namespace strin
 	return poList, nil
 }
 
+// listStatefulSets lists statefulsets in a given namespace with specific labels.
+func (r *HosstedProjectReconciler) listStatefulsets(ctx context.Context, namespace string, labels map[string]string) (*appsv1.StatefulSetList, error) {
+	statefulList := &appsv1.StatefulSetList{}
+
+	listOpts := []client.ListOption{
+		client.InNamespace(namespace),
+		client.MatchingLabels(labels),
+	}
+
+	err := r.Client.List(ctx, statefulList, listOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return statefulList, nil
+}
+
 // listDeployments lists deployments in a given namespace with specific labels.
 func (r *HosstedProjectReconciler) listDeployments(ctx context.Context, namespace string, labels map[string]string) (*appsv1.DeploymentList, error) {
 	deployList := &appsv1.DeploymentList{}

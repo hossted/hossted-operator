@@ -273,9 +273,14 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 		RepoUrl:   "https://charts.hossted.com",
 		Namespace: "hossted-platform",
 		Values: []string{
-			"mimir_pwd=" + os.Getenv("MIMIR_PASSWORD"),
 			"uuid=" + instance.Status.ClusterUUID,
 			"logging.enabled=" + enableLog,
+			"logging.url=" + os.Getenv("LOKI_URL"),
+			"logging.username" + os.Getenv("LOKI_USERNAME"),
+			"logging.password" + os.Getenv("LOKI_PASSWORD"),
+			"metrics.url=" + os.Getenv("MIMIR_URL"),
+			"metrics.username=" + os.Getenv("MIMIR_USERNAME"),
+			"metrics.password=" + os.Getenv("MIMIR_PASSWORD"),
 		},
 	}
 

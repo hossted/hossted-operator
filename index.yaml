@@ -2,6 +2,20 @@ apiVersion: v1
 entries:
   hossted-grafana-agent:
   - apiVersion: v2
+    appVersion: "9.8"
+    created: "2024-05-21T00:37:47.346468+05:30"
+    dependencies:
+    - condition: grafana-agent.enabled
+      name: grafana-agent
+      repository: https://grafana.github.io/helm-charts
+      version: 0.37.0
+    description: Chart for Hossted Grafana Agent
+    digest: 7d0f26d0631c0dbd72383bdf5ab5149365ea96b58cad834a436f7f978aae4a52
+    name: hossted-grafana-agent
+    urls:
+    - https://charts.hossted.com/helm-releases/hossted-grafana-agent-9.8.tgz
+    version: "9.8"  
+  - apiVersion: v2
     appVersion: "9.7"
     created: "2024-05-17T20:11:21.529440502+05:30"
     dependencies:
