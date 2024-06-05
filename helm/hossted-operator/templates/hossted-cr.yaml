@@ -8,7 +8,7 @@ metadata:
   annotations:
     "helm.sh/hook": post-install
 spec:
-  stop: false
+  stop: {{ .Values.stop }}
   cve:
     enable: {{ .Values.cve.enable }}
   monitoring:
