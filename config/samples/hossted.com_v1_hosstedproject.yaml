@@ -9,11 +9,13 @@ metadata:
     app.kubernetes.io/created-by: new
   name: hosstedproject-sample
 spec:
-  stop: false
+  stop: true
   cve:
-    enable: true
+    enable: false
   monitoring:
-    enable: true 
+    enable: false 
+  logging:
+    enable: false
   denyNamespaces: 
   - local-path-storage
   - kube-node-lease
