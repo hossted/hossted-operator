@@ -160,7 +160,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 					helmStatusMap[helmInfo.AppUUID] = helmInfo
 				}
 			}
-			podHolder, securityHolder, err = r.getPods(ctx, release.Namespace, release.Name)
+			podHolder, securityHolder, err = r.getPods(ctx, instance.Spec.CVE.Enable, release.Namespace, release.Name)
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -255,7 +255,7 @@ func (r *HosstedProjectReconciler) getHelmInfoValues(name, namespace string) (He
 }
 
 // getPods retrieves pods for a given release in the specified namespace.
-func (r *HosstedProjectReconciler) getPods(ctx context.Context, namespace, releaseName string) ([]PodInfo, []SecurityInfo, error) {
+func (r *HosstedProjectReconciler) getPods(ctx context.Context, cve bool, namespace, releaseName string) ([]PodInfo, []SecurityInfo, error) {
 	pods, err := r.listPods(ctx, namespace, map[string]string{
 		"app.kubernetes.io/instance":   releaseName,
 		"app.kubernetes.io/managed-by": "Helm",
@@ -264,11 +264,13 @@ func (r *HosstedProjectReconciler) getPods(ctx context.Context, namespace, relea
 		return nil, nil, err
 	}
 
-	vulns, err := r.listVunerability(ctx, namespace)
-	if err != nil {
-		return nil, nil, err
+	var vulns *[]trivy.VulnerabilityReport
+	if cve {
+		vulns, err = r.listVunerability(ctx, namespace)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
-
 	var podHolder []PodInfo
 	var securityInfoHolder []SecurityInfo
 	var securityInfoContainerHolder []SecurityInfoContainer

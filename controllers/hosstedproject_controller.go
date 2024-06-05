@@ -63,21 +63,22 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// instance not found check if req is of type VulnerabilityReport
-			vr := &trivy.VulnerabilityReport{}
-			err = r.Get(ctx, req.NamespacedName, vr)
-			if err != nil {
-				if errors.IsNotFound(err) {
+			if instance.Spec.CVE.Enable {
+				vr := &trivy.VulnerabilityReport{}
+				err = r.Get(ctx, req.NamespacedName, vr)
+				if err != nil {
+					if errors.IsNotFound(err) {
+						return ctrl.Result{}, nil
+					}
+					return ctrl.Result{}, err
+				}
+				// send vunerability report
+				err = r.handleVulnReports(ctx, req.NamespacedName.Namespace, logger)
+				if err != nil {
 					return ctrl.Result{}, nil
 				}
-				return ctrl.Result{}, err
-			}
-			// send vunerability report
-			err = r.handleVulnReports(ctx, req.NamespacedName.Namespace, logger)
-			if err != nil {
 				return ctrl.Result{}, nil
 			}
-			return ctrl.Result{}, nil
-
 		}
 		return ctrl.Result{}, err
 	}
@@ -352,21 +353,31 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 // SetupWithManager sets up the controller with the Manager.
 func (r *HosstedProjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
+	instance := &hosstedcomv1.Hosstedproject{}
+
+	_ = r.Get(context.TODO(), types.NamespacedName{Namespace: "", Name: "hossted-operator-cr"}, instance)
+
+	if instance.Spec.CVE.Enable {
+
+		return ctrl.NewControllerManagedBy(mgr).
+			For(&hosstedcomv1.Hosstedproject{}).
+			Watches(
+				&trivy.VulnerabilityReport{},
+				// handler.EnqueueRequestsFromMapFunc(r.findObjectsForVR),
+				handler.Funcs{
+					CreateFunc: func(ctx context.Context, e event.CreateEvent, q workqueue.RateLimitingInterface) {
+						q.Add(reconcile.Request{NamespacedName: types.NamespacedName{
+							Name:      e.Object.GetName(),
+							Namespace: e.Object.GetNamespace(),
+						}})
+					},
+				},
+				builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+			).
+			Complete(r)
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hosstedcomv1.Hosstedproject{}).
-		Watches(
-			&trivy.VulnerabilityReport{},
-			// handler.EnqueueRequestsFromMapFunc(r.findObjectsForVR),
-			handler.Funcs{
-				CreateFunc: func(ctx context.Context, e event.CreateEvent, q workqueue.RateLimitingInterface) {
-					q.Add(reconcile.Request{NamespacedName: types.NamespacedName{
-						Name:      e.Object.GetName(),
-						Namespace: e.Object.GetNamespace(),
-					}})
-				},
-			},
-			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
-		).
 		Complete(r)
 }
 
