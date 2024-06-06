@@ -47,6 +47,32 @@ spec:
                 items:
                   type: string
                 type: array
+              helm:
+                items:
+                  properties:
+                    chartName:
+                      type: string
+                    namespace:
+                      type: string
+                    releaseName:
+                      type: string
+                    repoName:
+                      type: string
+                    repoUrl:
+                      type: string
+                    values:
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - chartName
+                  - namespace
+                  - releaseName
+                  - repoName
+                  - repoUrl
+                  - values
+                  type: object
+                type: array
               logging:
                 properties:
                   enable:

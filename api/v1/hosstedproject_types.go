@@ -22,11 +22,21 @@ import (
 
 // HosstedprojectSpec defines the desired state of Hosstedproject
 type HosstedprojectSpec struct {
-	Stop           bool       `json:"stop,omitempty"`
-	Monitoring     Monitoring `json:"monitoring,omitempty"`
-	CVE            CVE        `json:"cve,omitempty"`
-	Logging        Logging    `json:"logging,omitempty"`
-	DenyNamespaces []string   `json:"denyNamespaces,omitempty"`
+	Stop           bool          `json:"stop,omitempty"`
+	Monitoring     Monitoring    `json:"monitoring,omitempty"`
+	CVE            CVE           `json:"cve,omitempty"`
+	Logging        Logging       `json:"logging,omitempty"`
+	DenyNamespaces []string      `json:"denyNamespaces,omitempty"`
+	Helm           []HelmInstall `json:"helm,omitempty"`
+}
+
+type HelmInstall struct {
+	ReleaseName string   `json:"releaseName"`
+	Namespace   string   `json:"namespace"`
+	Values      []string `json:"values"`
+	RepoName    string   `json:"repoName"`
+	ChartName   string   `json:"chartName"`
+	RepoUrl     string   `json:"repoUrl"`
 }
 
 type Monitoring struct {
