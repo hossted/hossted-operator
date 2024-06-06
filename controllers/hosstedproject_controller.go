@@ -91,6 +91,30 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		} else {
 			return ctrl.Result{RequeueAfter: r.ReconcileDuration}, nil
 		}
+	} else {
+		if instance.Spec.Helm != nil {
+			for _, h := range instance.Spec.Helm {
+				newHelm := helm.Helm{
+					ReleaseName: h.ReleaseName,
+					Namespace:   h.Namespace,
+					Values:      h.Values,
+					RepoName:    h.RepoName,
+					ChartName:   h.ChartName,
+					RepoUrl:     h.RepoUrl,
+				}
+				ok, err := helm.ListRelease(h.ChartName, h.Namespace)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+				if !ok {
+					err := helm.Apply(newHelm)
+					if err != nil {
+						return ctrl.Result{}, err
+					}
+				}
+
+			}
+		}
 	}
 
 	logger.Info("Reconciliation stopped", "name", req.Name)

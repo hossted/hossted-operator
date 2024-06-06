@@ -5,7 +5,7 @@ metadata:
     app.kubernetes.io/name: hosstedproject
     app.kubernetes.io/instance: hosstedproject-sample
     app.kubernetes.io/part-of: new
-    app.kuberentes.io/managed-by: kustomize
+    app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: new
   name: hosstedproject-sample
 spec:
@@ -16,6 +16,14 @@ spec:
     enable: false 
   logging:
     enable: false
+  helm:
+  - releaseName: kube-state-metrics
+    namespace: ksm
+    values:  
+      - selfMonitor.enabled=true
+    repoName: grafana
+    chartName: kube-state-metrics
+    repoUrl: https://prometheus-community.github.io/helm-charts
   denyNamespaces: 
   - local-path-storage
   - kube-node-lease

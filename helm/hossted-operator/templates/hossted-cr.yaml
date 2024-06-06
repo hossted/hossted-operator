@@ -15,6 +15,16 @@ spec:
     enable: {{ .Values.monitoring.enable }}
   logging:
     enable: {{ .Values.logging.enable }}
+  helm:
+{{- range .Values.helm }}
+    - releaseName: "{{ .releaseName }}"
+      namespace: "{{ .namespace }}"
+      values:  
+{{ toYaml .values | indent 8 }}
+      repoName: "{{ .repoName }}"
+      chartName: "{{ .chartName }}"
+      repoUrl: "{{ .repoUrl }}"
+{{- end }}
   denyNamespaces:
   - hossted-platform
   - kube-system
