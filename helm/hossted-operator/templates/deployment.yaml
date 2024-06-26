@@ -46,8 +46,8 @@ spec:
         env:
         - name: KUBERNETES_CLUSTER_DOMAIN
           value: {{ quote .Values.kubernetesClusterDomain }}
-        image: bitnami/kube-rbac-proxy:latest
         name: kube-rbac-proxy
+        image: bitnami/kube-rbac-proxy:latest
         ports:
         - containerPort: 8443
           name: https
@@ -75,6 +75,7 @@ spec:
           - name: {{ $key }}
             value: {{ tpl $value $ | quote }}
         {{- end }}  
+        name: manager
         image: {{ .Values.operator.image.repository }}:{{ .Chart.AppVersion }}
         imagePullPolicy: Always
         livenessProbe:
@@ -83,7 +84,6 @@ spec:
             port: 8081
           initialDelaySeconds: 15
           periodSeconds: 20
-        name: manager
         readinessProbe:
           httpGet:
             path: /readyz
