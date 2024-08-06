@@ -12,6 +12,7 @@ import (
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
 	helm "github.com/hossted/hossted-operator/pkg/helm"
 	helmrelease "helm.sh/helm/v3/pkg/release"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -31,6 +32,7 @@ type AppInfo struct {
 	ConfigmapInfo   []ConfigmapInfo       `json:"configmap_info"`
 	HelmValueInfo   HelmValueInfo         `json:"helmvalue_info"`
 	SecurityInfo    []SecurityInfo        `json:"security_info"`
+	SecretInfo      []SecretInfo          `json:"secret_info"`
 }
 
 // AppAPIInfo contains basic information about the application API.
@@ -56,6 +58,12 @@ type IngressInfo struct {
 	Domain    string `json:"domain"`
 }
 
+type SecretInfo struct {
+	Name      string            `json:"name"`
+	Namespace string            `json:"namespace"`
+	Data      map[string][]byte `json:"data"`
+}
+
 // PodInfo contains information about a Kubernetes pod.
 type PodInfo struct {
 	Name      string `json:"name"`
@@ -65,8 +73,9 @@ type PodInfo struct {
 }
 
 type DeploymentInfo struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
+	Name      string                `json:"name"`
+	Namespace string                `json:"namespace"`
+	SecretRef *v1.SecretKeySelector `json:"secretRef"`
 }
 
 type StatefulsetInfo struct {
@@ -143,6 +152,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			helmvalueHolder   HelmValueInfo
 			deploymentHolder  []DeploymentInfo
 			statefulsetHolder []StatefulsetInfo
+			secretHolder      []SecretInfo
 		)
 		for _, release := range releases {
 			helmInfo, err = r.getHelmInfo(*release, instance)
@@ -192,6 +202,10 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			if err != nil {
 				return nil, nil, nil, err
 			}
+			secretHolder, err = r.getSecrets(ctx, release.Namespace, release.Name)
+			if err != nil {
+				return nil, nil, nil, err
+			}
 			revisions = append(revisions, helmInfo.Revision)
 
 			// After collecting all HelmInfo structs for this iteration, assign to instance.Status.HelmStatus
@@ -206,6 +220,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 				ConfigmapInfo:   configmapHolder,
 				HelmValueInfo:   helmvalueHolder,
 				SecurityInfo:    securityHolder,
+				SecretInfo:      secretHolder,
 			}
 
 			collector := &Collector{
@@ -337,6 +352,30 @@ func (r *HosstedProjectReconciler) getStatefulsets(ctx context.Context, namespac
 	return statefulsetHolder, nil
 }
 
+// getSecrets retrieves secrets for a given release in the specified namespace.
+func (r *HosstedProjectReconciler) getSecrets(ctx context.Context, namespace, releaseName string) ([]SecretInfo, error) {
+	secretInfo, err := r.listSecrets(ctx, namespace, map[string]string{
+		"app.kubernetes.io/instance":   releaseName,
+		"app.kubernetes.io/managed-by": "Helm",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var secretInfoHolder []SecretInfo
+
+	for _, secret := range secretInfo.Items {
+		secretInfo := SecretInfo{
+			Name:      secret.Name,
+			Namespace: secret.Namespace,
+			Data:      secret.Data,
+		}
+		secretInfoHolder = append(secretInfoHolder, secretInfo)
+	}
+
+	return secretInfoHolder, nil
+}
+
 // getDeployments retrieves deployments for a given release in the specified namespace.
 func (r *HosstedProjectReconciler) getDeployments(ctx context.Context, namespace, releaseName string) ([]DeploymentInfo, error) {
 	deployments, err := r.listDeployments(ctx, namespace, map[string]string{
@@ -350,11 +389,20 @@ func (r *HosstedProjectReconciler) getDeployments(ctx context.Context, namespace
 	var deploymentHolder []DeploymentInfo
 
 	for _, deploy := range deployments.Items {
-		deploymentInfo := DeploymentInfo{
-			Name:      deploy.Name,
-			Namespace: deploy.Namespace,
+		for _, container := range deploy.Spec.Template.Spec.Containers {
+			for _, env := range container.Env {
+				if env.ValueFrom == nil || env.ValueFrom.SecretKeyRef == nil {
+					continue
+				}
+				deploymentInfo := DeploymentInfo{
+					Name:      deploy.Name,
+					Namespace: deploy.Namespace,
+					SecretRef: env.ValueFrom.SecretKeyRef,
+				}
+				deploymentHolder = append(deploymentHolder, deploymentInfo)
+			}
 		}
-		deploymentHolder = append(deploymentHolder, deploymentInfo)
+
 	}
 
 	return deploymentHolder, nil

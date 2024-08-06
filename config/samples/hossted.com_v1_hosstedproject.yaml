@@ -9,7 +9,7 @@ metadata:
     app.kubernetes.io/created-by: new
   name: hosstedproject-sample
 spec:
-  stop: true
+  stop: false
   cve:
     enable: false
   monitoring:
