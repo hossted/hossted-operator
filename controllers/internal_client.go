@@ -89,6 +89,23 @@ func (r *HosstedProjectReconciler) listDeployments(ctx context.Context, namespac
 	return deployList, nil
 }
 
+// listSecrets lists secrets in a given namespace with specific labels.
+func (r *HosstedProjectReconciler) listSecrets(ctx context.Context, namespace string, labels map[string]string) (*corev1.SecretList, error) {
+	secretList := &corev1.SecretList{}
+
+	listOpts := []client.ListOption{
+		client.InNamespace(namespace),
+		client.MatchingLabels(labels),
+	}
+
+	err := r.Client.List(ctx, secretList, listOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return secretList, nil
+}
+
 // listServices lists services in a given namespace with specific labels.
 func (r *HosstedProjectReconciler) listServices(ctx context.Context, namespace string, labels map[string]string) (*corev1.ServiceList, error) {
 	serviceList := &corev1.ServiceList{}
