@@ -392,14 +392,21 @@ func (r *HosstedProjectReconciler) getDeployments(ctx context.Context, namespace
 		for _, container := range deploy.Spec.Template.Spec.Containers {
 			for _, env := range container.Env {
 				if env.ValueFrom == nil || env.ValueFrom.SecretKeyRef == nil {
-					continue
+					deploymentInfo := DeploymentInfo{
+						Name:      deploy.Name,
+						Namespace: deploy.Namespace,
+						//SecretRef: env.ValueFrom.SecretKeyRef,
+					}
+					deploymentHolder = append(deploymentHolder, deploymentInfo)
+				} else {
+					deploymentInfo := DeploymentInfo{
+						Name:      deploy.Name,
+						Namespace: deploy.Namespace,
+						SecretRef: env.ValueFrom.SecretKeyRef,
+					}
+					deploymentHolder = append(deploymentHolder, deploymentInfo)
 				}
-				deploymentInfo := DeploymentInfo{
-					Name:      deploy.Name,
-					Namespace: deploy.Namespace,
-					SecretRef: env.ValueFrom.SecretKeyRef,
-				}
-				deploymentHolder = append(deploymentHolder, deploymentInfo)
+
 			}
 		}
 
