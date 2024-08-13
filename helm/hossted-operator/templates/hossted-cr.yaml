@@ -15,6 +15,8 @@ spec:
     enable: {{ .Values.monitoring.enable }}
   logging:
     enable: {{ .Values.logging.enable }}
+  ingress:
+    enable: {{ .Values.ingress.enable }}    
   helm:
 {{- range .Values.helm }}
     - releaseName: "{{ .releaseName }}"

@@ -209,6 +209,10 @@ func (r *HosstedProjectReconciler) handleExistingCluster(ctx context.Context, in
 	if err != nil {
 		return err
 	}
+	err = r.handleIngress(ctx, instance)
+	if err != nil {
+		return err
+	}
 
 	logger.Info("No state change detected, requeueing")
 	return nil
@@ -251,6 +255,7 @@ func (r *HosstedProjectReconciler) registerClusterUUID(instance *hosstedcomv1.Ho
 			Monitoring bool `json:"monitoring"`
 			Logging    bool `json:"logging"`
 			CVE        bool `json:"cve_scan"`
+			Ingress    bool `json:"ingress"`
 		} `json:"options_state"`
 	}
 
@@ -263,10 +268,12 @@ func (r *HosstedProjectReconciler) registerClusterUUID(instance *hosstedcomv1.Ho
 			Monitoring bool `json:"monitoring"`
 			Logging    bool `json:"logging"`
 			CVE        bool `json:"cve_scan"`
+			Ingress    bool `json:"ingress"`
 		}{
 			Monitoring: instance.Spec.Monitoring.Enable,
 			Logging:    instance.Spec.Logging.Enable,
 			CVE:        instance.Spec.CVE.Enable,
+			Ingress:    instance.Spec.Ingress.Enable,
 		},
 	}
 
@@ -368,6 +375,62 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 			})
 			if err != nil {
 				return fmt.Errorf("failed to delete DaemonSet: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+// enable ingress controller
+func (r *HosstedProjectReconciler) handleIngress(ctx context.Context, instance *hosstedcomv1.Hosstedproject) error {
+
+	// Helm configuration for ingress controller
+	ing := helm.Helm{
+		ChartName: "ingress-nginx",
+		RepoName:  "ingress-nginx",
+		RepoUrl:   "https://kubernetes.github.io/ingress-nginx",
+		Namespace: "hossted-platform",
+		Version:   "4.11.1",
+		Values: []string{
+			"controller.replicaCount=2",
+			"controller.service.ports.http=80",
+			"controller.service.ports.https=443",
+			"controller.ingressClassByName=true",
+			"controller.ingressClassResource.name=hossted-operator",
+			"controller.ingressClassResource.controllerValue=k8s.io/hossted-operator",
+			"controller.ingressClassResource.enabled=true",
+			"controller.ingressClass=hossted-operator",
+		},
+	}
+
+	// Check if monitoring is enabled
+	if instance.Spec.Ingress.Enable {
+		// Check if Grafana Agent release already exists
+		ok, err := helm.ListRelease(ing.ChartName, ing.Namespace)
+		if err != nil {
+			return err
+		}
+
+		if !ok {
+			// install ingress controller
+			err = helm.Apply(ing)
+			if err != nil {
+				fmt.Println("ingress controller installation failed %w", err)
+			}
+			return nil
+		}
+
+	} else {
+		// If ingress is not enabled, check if ingress controller release exists
+		ok, err := helm.ListRelease(ing.ChartName, ing.Namespace)
+		if err != nil {
+			return err
+		}
+		if ok {
+			// Delete ingress controller release if it exists
+			err_del := helm.DeleteRelease(ing.ChartName, ing.Namespace)
+			if err_del != nil {
+				return fmt.Errorf("ingress controller deletion failed %w", err_del)
 			}
 		}
 	}

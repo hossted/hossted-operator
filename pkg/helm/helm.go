@@ -29,6 +29,7 @@ type Helm struct {
 	RepoName    string
 	ChartName   string
 	RepoUrl     string
+	Version     string
 }
 
 func ListReleases(namespace string) ([]*release.Release, error) {
@@ -82,6 +83,7 @@ func Apply(h Helm) error {
 	// Set action options
 	client.ReleaseName = h.ChartName
 	client.Namespace = h.Namespace
+	client.Version = h.Version
 	client.CreateNamespace = true
 	client.Wait = true
 	client.Timeout = 120 * time.Second
