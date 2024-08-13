@@ -16,6 +16,8 @@ spec:
     enable: false 
   logging:
     enable: false
+  ingress:
+    enable: false  
   helm:
   - releaseName: kube-state-metrics
     namespace: ksm

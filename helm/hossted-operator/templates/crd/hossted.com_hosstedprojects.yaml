@@ -73,6 +73,12 @@ spec:
                   - values
                   type: object
                 type: array
+              ingress:
+                properties:
+                  enable:
+                    default: false
+                    type: boolean
+                type: object
               logging:
                 properties:
                   enable:
