@@ -86,7 +86,7 @@ func Apply(h Helm) error {
 	client.Version = h.Version
 	client.CreateNamespace = true
 	client.Wait = true
-	client.Timeout = 120 * time.Second
+	client.Timeout = 300 * time.Second
 	client.WaitForJobs = true
 	//client.IncludeCRDs = true
 
