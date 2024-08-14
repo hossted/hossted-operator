@@ -248,7 +248,7 @@ entries:
     name: hossted-operator
     type: application
     urls:
-    - https://charts.hossted.com/hossted-operator-0.3.7.tgz
+    - https://charts.hossted.com/helm-releases/hossted-operator-0.3.7.tgz
     version: 0.3.7
   - apiVersion: v2
     appVersion: 0.3.5
