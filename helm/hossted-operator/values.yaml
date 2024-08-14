@@ -18,6 +18,9 @@ monitoring:
   enable: true
 logging:
   enable: false
+ingress:
+  enable: true
+
 
 nameOverride: hossted
 
