@@ -2,10 +2,14 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
 	"sort"
+
+	networkingv1 "k8s.io/api/networking/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	trivy "github.com/aquasecurity/trivy-operator/pkg/apis/aquasecurity/v1alpha1"
 	"github.com/google/uuid"
@@ -14,6 +18,7 @@ import (
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type Collector struct {
@@ -23,6 +28,7 @@ type Collector struct {
 
 type AppInfo struct {
 	HelmInfo        hosstedcomv1.HelmInfo `json:"helm_info"`
+	AccessInfo      AccessInfo            `json:"access_info"`
 	PodInfo         []PodInfo             `json:"pod_info"`
 	DeploymentInfo  []DeploymentInfo      `json:"deployment_info"`
 	StatefulsetInfo []StatefulsetInfo     `json:"statefulset_info"`
@@ -33,6 +39,12 @@ type AppInfo struct {
 	HelmValueInfo   HelmValueInfo         `json:"helmvalue_info"`
 	SecurityInfo    []SecurityInfo        `json:"security_info"`
 	SecretInfo      []SecretInfo          `json:"secret_info"`
+}
+
+type AccessInfo struct {
+	HosstedPrimaryUsername []byte `json:"hosstedPrimaryUsername"`
+	HosstedPrimaryPassword []byte `json:"hosstedPrimaryPassword"`
+	HosstedPrimaryUrl      string `json:"hosstedPrimaryUrl"`
 }
 
 // AppAPIInfo contains basic information about the application API.
@@ -112,6 +124,20 @@ type SecurityInfoContainer struct {
 	Vulnerabilities      []trivy.Vulnerability      `json:"vulnerabilities"`
 }
 
+type PrimaryCreds struct {
+	Namespace string `json:"namespace"`
+	Password  struct {
+		Key        string `json:"key"`
+		SecretName string `json:"secretName,omitempty"`
+		ConfigMap  string `json:"configMap,omitempty"`
+	} `json:"password"`
+	User struct {
+		SecretName string `json:"secretName,omitempty"`
+		ConfigMap  string `json:"configMap,omitempty"`
+		Key        string `json:"key"`
+	} `json:"user"`
+}
+
 func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hosstedcomv1.Hosstedproject) ([]*Collector, []int, []hosstedcomv1.HelmInfo, error) {
 	var collectors []*Collector
 	namespaceList, err := r.listNamespaces(ctx)
@@ -143,6 +169,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 
 		var (
 			helmInfo          hosstedcomv1.HelmInfo
+			accessInfo        *AccessInfo
 			podHolder         []PodInfo
 			svcHolder         []ServiceInfo
 			pvcHolder         []VolumeInfo
@@ -169,6 +196,11 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 					helmInfo.HosstedHelm = true
 					helmStatusMap[helmInfo.AppUUID] = helmInfo
 				}
+			}
+
+			accessInfo, err = r.getAccessInfo(ctx)
+			if err != nil {
+				return nil, nil, nil, err
 			}
 			podHolder, securityHolder, err = r.getPods(ctx, instance.Spec.CVE.Enable, release.Namespace, release.Name)
 			if err != nil {
@@ -211,6 +243,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			// After collecting all HelmInfo structs for this iteration, assign to instance.Status.HelmStatus
 			appInfo := AppInfo{
 				HelmInfo:        helmInfo,
+				AccessInfo:      *accessInfo,
 				PodInfo:         podHolder,
 				StatefulsetInfo: statefulsetHolder,
 				DeploymentInfo:  deploymentHolder,
@@ -570,4 +603,93 @@ func isHostedHelm(release helmrelease.Release) bool {
 	} else {
 		return false
 	}
+}
+
+func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessInfo, error) {
+	cm := v1.ConfigMap{}
+	err := r.Client.Get(ctx, types.NamespacedName{
+		Namespace: "hossted-platform",
+		Name:      "access-object-info",
+	}, &cm)
+	if err != nil {
+		return &AccessInfo{}, nil
+	}
+
+	var pmc PrimaryCreds
+	// Extract the JSON string from the ConfigMap's data
+	if jsonString, ok := cm.Data["access-object.json"]; ok {
+		// Unmarshal the JSON string into the PrimaryCreds struct
+		err = json.Unmarshal([]byte(jsonString), &pmc)
+		if err != nil {
+			return &AccessInfo{}, err
+		}
+	} else {
+		return &AccessInfo{}, fmt.Errorf("access-object.json key not found in ConfigMap")
+	}
+
+	access := AccessInfo{}
+
+	if pmc.Password.SecretName != "" {
+		secretInfo := v1.Secret{}
+		err := r.Client.Get(ctx, types.NamespacedName{
+			Namespace: pmc.Namespace,
+			Name:      pmc.Password.SecretName,
+		}, &secretInfo)
+		if err != nil {
+			return &AccessInfo{}, nil
+		}
+		// Directly assign the base64 encoded value from the secret
+		access.HosstedPrimaryPassword = secretInfo.Data[pmc.Password.Key]
+
+	} else if pmc.Password.ConfigMap != "" {
+		cmInfo := v1.ConfigMap{}
+		err := r.Client.Get(ctx, types.NamespacedName{
+			Namespace: pmc.Namespace,
+			Name:      pmc.Password.ConfigMap,
+		}, &cmInfo)
+		if err != nil {
+			return &AccessInfo{}, nil
+		}
+		access.HosstedPrimaryPassword = []byte(cmInfo.Data[pmc.Password.Key])
+	}
+
+	if pmc.User.ConfigMap != "" {
+		cmInfo := v1.ConfigMap{}
+		err = r.Client.Get(ctx, types.NamespacedName{
+			Namespace: pmc.Namespace,
+			Name:      pmc.User.ConfigMap,
+		}, &cmInfo)
+		if err != nil {
+			return &AccessInfo{}, nil
+		}
+		access.HosstedPrimaryUsername = []byte(cmInfo.Data[pmc.User.Key])
+	} else if pmc.User.SecretName != "" {
+		secretInfo := v1.Secret{}
+		err := r.Client.Get(ctx, types.NamespacedName{
+			Namespace: pmc.Namespace,
+			Name:      pmc.User.SecretName,
+		}, &secretInfo)
+		if err != nil {
+			return &AccessInfo{}, nil
+		}
+		// Directly assign the base64 encoded value from the secret
+		access.HosstedPrimaryUsername = secretInfo.Data[pmc.User.Key]
+	}
+
+	ingressList := networkingv1.IngressList{}
+	err = r.Client.List(ctx, &ingressList, &client.ListOptions{Namespace: pmc.Namespace})
+	if err != nil {
+		return &AccessInfo{}, nil
+	}
+
+	ingressClassName := "hossted-operator-nginx"
+	for _, ingress := range ingressList.Items {
+		if ingress.Spec.IngressClassName != nil && *ingress.Spec.IngressClassName == ingressClassName {
+			if len(ingress.Spec.Rules) > 0 {
+				access.HosstedPrimaryUrl = ingress.Spec.Rules[0].Host
+			}
+		}
+	}
+
+	return &access, nil
 }

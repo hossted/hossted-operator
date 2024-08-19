@@ -37,3 +37,6 @@ helm:
     repoName: "grafana"
     chartName: "kube-state-metrics"
     repoUrl: "https://prometheus-community.github.io/helm-charts"
+
+primaryCreds: {}
+
