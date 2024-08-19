@@ -38,11 +38,5 @@ helm:
     chartName: "kube-state-metrics"
     repoUrl: "https://prometheus-community.github.io/helm-charts"
 
-primaryCreds:
-  namespace: hossted-keycloak
-  user: 
-    key: "KEYCLOAK_ADMIN"
-    configMap: "keycloak-env-vars"
-  password: 
-    key: "admin-password"
-    secretName: "keycloak"
+primaryCreds: {}
+
