@@ -42,9 +42,9 @@ type AppInfo struct {
 }
 
 type AccessInfo struct {
-	HosstedPrimaryUrl      string `json:"hossted_primary_url"`
-	HosstedPrimaryUsername string `json:"hossted_primary_username"`
-	HosstedPrimaryPassword string `json:"hossted_primary_password"`
+	HosstedPrimaryUsername []byte `json:"hosstedPrimaryUsername"`
+	HosstedPrimaryPassword []byte `json:"hosstedPrimaryPassword"`
+	HosstedPrimaryUrl      string `json:"hosstedPrimaryUrl"`
 }
 
 // AppAPIInfo contains basic information about the application API.
@@ -638,11 +638,11 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 		if err != nil {
 			return &AccessInfo{}, nil
 		}
-		access.HosstedPrimaryPassword = string(secretInfo.Data[pmc.Password.Key])
+		// Directly assign the base64 encoded value from the secret
+		access.HosstedPrimaryPassword = secretInfo.Data[pmc.Password.Key]
 
 	} else if pmc.Password.ConfigMap != "" {
 		cmInfo := v1.ConfigMap{}
-
 		err := r.Client.Get(ctx, types.NamespacedName{
 			Namespace: pmc.Namespace,
 			Name:      pmc.Password.ConfigMap,
@@ -650,12 +650,11 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 		if err != nil {
 			return &AccessInfo{}, nil
 		}
-		access.HosstedPrimaryPassword = string(cmInfo.Data[pmc.Password.Key])
-
+		access.HosstedPrimaryPassword = []byte(cmInfo.Data[pmc.Password.Key])
 	}
+
 	if pmc.User.ConfigMap != "" {
 		cmInfo := v1.ConfigMap{}
-
 		err = r.Client.Get(ctx, types.NamespacedName{
 			Namespace: pmc.Namespace,
 			Name:      pmc.User.ConfigMap,
@@ -663,8 +662,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 		if err != nil {
 			return &AccessInfo{}, nil
 		}
-
-		access.HosstedPrimaryUsername = cmInfo.Data[pmc.User.Key]
+		access.HosstedPrimaryUsername = []byte(cmInfo.Data[pmc.User.Key])
 	} else if pmc.User.SecretName != "" {
 		secretInfo := v1.Secret{}
 		err := r.Client.Get(ctx, types.NamespacedName{
@@ -674,7 +672,8 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 		if err != nil {
 			return &AccessInfo{}, nil
 		}
-		access.HosstedPrimaryUsername = string(secretInfo.Data[pmc.User.Key])
+		// Directly assign the base64 encoded value from the secret
+		access.HosstedPrimaryUsername = secretInfo.Data[pmc.User.Key]
 	}
 
 	ingressList := networkingv1.IngressList{}
@@ -691,6 +690,6 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 			}
 		}
 	}
-	return &access, nil
 
+	return &access, nil
 }
