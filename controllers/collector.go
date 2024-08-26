@@ -616,7 +616,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 		Name:      "access-object-info",
 	}, &cm)
 	if err != nil {
-		return &AccessInfo{}, nil
+		return nil, fmt.Errorf("failed to get ConfigMap: %w", err)
 	}
 
 	var pmc PrimaryCreds
@@ -625,10 +625,10 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 		// Unmarshal the JSON string into the PrimaryCreds struct
 		err = json.Unmarshal([]byte(jsonString), &pmc)
 		if err != nil {
-			return &AccessInfo{}, err
+			return nil, fmt.Errorf("failed to unmarshal access-object.json: %w", err)
 		}
 	} else {
-		return &AccessInfo{}, fmt.Errorf("access-object.json key not found in ConfigMap")
+		return nil, fmt.Errorf("access-object.json key not found in ConfigMap")
 	}
 
 	var user, password []byte
@@ -640,7 +640,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 			Name:      pmc.User.ConfigMap,
 		}, &cmInfo)
 		if err != nil {
-			return &AccessInfo{}, nil
+			return nil, fmt.Errorf("failed to get user ConfigMap: %w", err)
 		}
 		user = []byte(cmInfo.Data[pmc.User.Key])
 	} else if pmc.User.SecretName != "" {
@@ -650,12 +650,12 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 			Name:      pmc.User.SecretName,
 		}, &secretInfo)
 		if err != nil {
-			return &AccessInfo{}, nil
+			return nil, fmt.Errorf("failed to get user Secret: %w", err)
 		}
 		user = secretInfo.Data[pmc.User.Key]
 	}
 
-	// Fetch password from ConfigMap or Secret
+	// Fetch password from Secret or ConfigMap
 	if pmc.Password.SecretName != "" {
 		secretInfo := v1.Secret{}
 		err := r.Client.Get(ctx, types.NamespacedName{
@@ -663,7 +663,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 			Name:      pmc.Password.SecretName,
 		}, &secretInfo)
 		if err != nil {
-			return &AccessInfo{}, nil
+			return nil, fmt.Errorf("failed to get password Secret: %w", err)
 		}
 		password = secretInfo.Data[pmc.Password.Key]
 	} else if pmc.Password.ConfigMap != "" {
@@ -673,7 +673,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 			Name:      pmc.Password.ConfigMap,
 		}, &cmInfo)
 		if err != nil {
-			return &AccessInfo{}, nil
+			return nil, fmt.Errorf("failed to get password ConfigMap: %w", err)
 		}
 		password = []byte(cmInfo.Data[pmc.Password.Key])
 	}
@@ -682,7 +682,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 	ingressList := networkingv1.IngressList{}
 	err = r.Client.List(ctx, &ingressList, &client.ListOptions{Namespace: pmc.Namespace})
 	if err != nil {
-		return &AccessInfo{}, nil
+		return nil, fmt.Errorf("failed to list Ingresses: %w", err)
 	}
 
 	ingressClassName := "hossted-operator-nginx"
@@ -698,6 +698,10 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 				access.URLs = append(access.URLs, urlInfo)
 			}
 		}
+	}
+
+	if len(access.URLs) == 0 {
+		return nil, fmt.Errorf("no matching Ingress found with class %s", ingressClassName)
 	}
 
 	return &access, nil
