@@ -41,10 +41,14 @@ type AppInfo struct {
 	SecretInfo      []SecretInfo          `json:"secret_info"`
 }
 
+type URLInfo struct {
+	URL      string `json:"url"`
+	User     string `json:"user,omitempty"`
+	Password string `json:"password,omitempty"`
+}
+
 type AccessInfo struct {
-	HosstedPrimaryUsername []byte `json:"hosstedPrimaryUsername"`
-	HosstedPrimaryPassword []byte `json:"hosstedPrimaryPassword"`
-	HosstedPrimaryUrl      string `json:"hosstedPrimaryUrl"`
+	URLs []URLInfo `json:"urls"`
 }
 
 // AppAPIInfo contains basic information about the application API.
@@ -627,32 +631,8 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 		return &AccessInfo{}, fmt.Errorf("access-object.json key not found in ConfigMap")
 	}
 
-	access := AccessInfo{}
-
-	if pmc.Password.SecretName != "" {
-		secretInfo := v1.Secret{}
-		err := r.Client.Get(ctx, types.NamespacedName{
-			Namespace: pmc.Namespace,
-			Name:      pmc.Password.SecretName,
-		}, &secretInfo)
-		if err != nil {
-			return &AccessInfo{}, nil
-		}
-		// Directly assign the base64 encoded value from the secret
-		access.HosstedPrimaryPassword = secretInfo.Data[pmc.Password.Key]
-
-	} else if pmc.Password.ConfigMap != "" {
-		cmInfo := v1.ConfigMap{}
-		err := r.Client.Get(ctx, types.NamespacedName{
-			Namespace: pmc.Namespace,
-			Name:      pmc.Password.ConfigMap,
-		}, &cmInfo)
-		if err != nil {
-			return &AccessInfo{}, nil
-		}
-		access.HosstedPrimaryPassword = []byte(cmInfo.Data[pmc.Password.Key])
-	}
-
+	var user, password []byte
+	// Fetch user from ConfigMap or Secret
 	if pmc.User.ConfigMap != "" {
 		cmInfo := v1.ConfigMap{}
 		err = r.Client.Get(ctx, types.NamespacedName{
@@ -662,7 +642,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 		if err != nil {
 			return &AccessInfo{}, nil
 		}
-		access.HosstedPrimaryUsername = []byte(cmInfo.Data[pmc.User.Key])
+		user = []byte(cmInfo.Data[pmc.User.Key])
 	} else if pmc.User.SecretName != "" {
 		secretInfo := v1.Secret{}
 		err := r.Client.Get(ctx, types.NamespacedName{
@@ -672,10 +652,33 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 		if err != nil {
 			return &AccessInfo{}, nil
 		}
-		// Directly assign the base64 encoded value from the secret
-		access.HosstedPrimaryUsername = secretInfo.Data[pmc.User.Key]
+		user = secretInfo.Data[pmc.User.Key]
 	}
 
+	// Fetch password from ConfigMap or Secret
+	if pmc.Password.SecretName != "" {
+		secretInfo := v1.Secret{}
+		err := r.Client.Get(ctx, types.NamespacedName{
+			Namespace: pmc.Namespace,
+			Name:      pmc.Password.SecretName,
+		}, &secretInfo)
+		if err != nil {
+			return &AccessInfo{}, nil
+		}
+		password = secretInfo.Data[pmc.Password.Key]
+	} else if pmc.Password.ConfigMap != "" {
+		cmInfo := v1.ConfigMap{}
+		err := r.Client.Get(ctx, types.NamespacedName{
+			Namespace: pmc.Namespace,
+			Name:      pmc.Password.ConfigMap,
+		}, &cmInfo)
+		if err != nil {
+			return &AccessInfo{}, nil
+		}
+		password = []byte(cmInfo.Data[pmc.Password.Key])
+	}
+
+	access := AccessInfo{}
 	ingressList := networkingv1.IngressList{}
 	err = r.Client.List(ctx, &ingressList, &client.ListOptions{Namespace: pmc.Namespace})
 	if err != nil {
@@ -686,7 +689,13 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 	for _, ingress := range ingressList.Items {
 		if ingress.Spec.IngressClassName != nil && *ingress.Spec.IngressClassName == ingressClassName {
 			if len(ingress.Spec.Rules) > 0 {
-				access.HosstedPrimaryUrl = ingress.Spec.Rules[0].Host
+				url := ingress.Spec.Rules[0].Host
+				urlInfo := URLInfo{
+					URL:      url,
+					User:     string(user),
+					Password: string(password),
+				}
+				access.URLs = append(access.URLs, urlInfo)
 			}
 		}
 	}
