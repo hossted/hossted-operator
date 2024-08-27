@@ -685,7 +685,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 		return nil, fmt.Errorf("failed to list Ingresses: %w", err)
 	}
 
-	ingressClassName := "hossted-operator-nginx"
+	ingressClassName := "hossted-operator"
 	for _, ingress := range ingressList.Items {
 		if ingress.Spec.IngressClassName != nil && *ingress.Spec.IngressClassName == ingressClassName {
 			if len(ingress.Spec.Rules) > 0 {

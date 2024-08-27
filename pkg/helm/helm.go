@@ -81,7 +81,7 @@ func Apply(h Helm) error {
 	}
 
 	// Set action options
-	client.ReleaseName = h.ChartName
+	client.ReleaseName = h.ReleaseName
 	client.Namespace = h.Namespace
 	client.Version = h.Version
 	client.CreateNamespace = true
