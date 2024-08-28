@@ -616,7 +616,10 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 		Name:      "access-object-info",
 	}, &cm)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get ConfigMap: %w", err)
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, nil
 	}
 
 	var pmc PrimaryCreds
@@ -701,7 +704,8 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 	}
 
 	if len(access.URLs) == 0 {
-		return nil, fmt.Errorf("no matching Ingress found with class %s", ingressClassName)
+		fmt.Printf("no matching Ingress found with class %s", ingressClassName)
+		return nil, nil
 	}
 
 	return &access, nil
