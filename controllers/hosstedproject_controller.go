@@ -300,10 +300,11 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 		enableLog = "true"
 	}
 	h := helm.Helm{
-		ChartName: "hossted-grafana-agent",
-		RepoName:  "grafana",
-		RepoUrl:   "https://charts.hossted.com",
-		Namespace: "hossted-platform",
+		ReleaseName: "hossted-grafana-agent",
+		ChartName:   "hossted-grafana-agent",
+		RepoName:    "grafana",
+		RepoUrl:     "https://charts.hossted.com",
+		Namespace:   "hossted-platform",
 		Values: []string{
 			"uuid=" + instance.Status.ClusterUUID,
 			"logging.enabled=" + enableLog,
@@ -317,10 +318,11 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 	}
 
 	ksm := helm.Helm{
-		ChartName: "kube-state-metrics",
-		RepoName:  "grafana",
-		RepoUrl:   "https://prometheus-community.github.io/helm-charts",
-		Namespace: "hossted-platform",
+		ReleaseName: "kube-state-metrics",
+		ChartName:   "kube-state-metrics",
+		RepoName:    "grafana",
+		RepoUrl:     "https://prometheus-community.github.io/helm-charts",
+		Namespace:   "hossted-platform",
 		Values: []string{
 			"selfMonitor.enabled=true",
 		},
