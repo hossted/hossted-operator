@@ -704,8 +704,8 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 	}
 
 	if len(access.URLs) == 0 {
-		fmt.Printf("no matching Ingress found with class %s", ingressClassName)
-		return nil, nil
+		fmt.Printf("no matching Ingress found with class %s\n", ingressClassName)
+		return &access, nil
 	}
 
 	return &access, nil
