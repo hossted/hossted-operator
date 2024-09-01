@@ -142,6 +142,14 @@ type PrimaryCreds struct {
 	} `json:"user"`
 }
 
+type DnsInfo struct {
+	Name      string `json:"name"`
+	Content   string `json:"content"`
+	Type      string `json:"type"`
+	ClusterId string `json:"clusterid"`
+	Env       string `json:"env"`
+}
+
 func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hosstedcomv1.Hosstedproject) ([]*Collector, []int, []hosstedcomv1.HelmInfo, error) {
 	var collectors []*Collector
 	namespaceList, err := r.listNamespaces(ctx)
@@ -709,4 +717,22 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 	}
 
 	return &access, nil
+}
+
+// getIngDns retrieves ingress and return DnsInfo
+func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hosstedcomv1.Hosstedproject) (DnsInfo, error) {
+	ings := &networkingv1.IngressList{}
+	dnsinfo := DnsInfo{}
+	err := r.Client.List(ctx, ings, &client.ListOptions{})
+	if err != nil {
+	}
+
+	if len(ings.Items) > 0 {
+		ing := ings.Items[0]
+		dnsinfo.Content = ing.Status.LoadBalancer.Ingress[0].IP
+		dnsinfo.Name = ing.Spec.Rules[0].Host
+		dnsinfo.ClusterId = instance.Status.ClusterUUID
+		dnsinfo.Type = "A"
+	}
+	return dnsinfo, nil
 }

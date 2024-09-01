@@ -143,6 +143,7 @@ func (r *HosstedProjectReconciler) handleReconciliation(ctx context.Context, ins
 		if err != nil {
 			return err
 		}
+		r.registerDns(ctx, instance)
 
 	}
 	collector, currentRevision, helmStatus, err = r.collector(ctx, instance)
@@ -154,7 +155,7 @@ func (r *HosstedProjectReconciler) handleReconciliation(ctx context.Context, ins
 	if err != nil {
 		return err
 	}
-
+	r.registerDns(ctx, instance)
 	return nil
 
 }
@@ -501,4 +502,17 @@ func (r *HosstedProjectReconciler) handleVulnReports(ctx context.Context, namesp
 		return err
 	}
 	return nil
+}
+
+// handleExistingCluster handles reconciliation for an existing cluster.
+func (r *HosstedProjectReconciler) registerDns(ctx context.Context, instance *hosstedcomv1.Hosstedproject) {
+	dnsrequest, _ := r.getDns(ctx, instance)
+	body, _ := json.Marshal(dnsrequest)
+	dnsURL := os.Getenv("HOSSTED_API_URL") + "/clusters/dns"
+	resp, _ := internalHTTP.HttpRequest(body, dnsURL)
+	instance.Status.DnsResponse = resp.StatusCode
+	if instance.Status.DnsResponse != 200 || instance.Status.DnsResponse == 0 {
+		_ = r.Status().Update(ctx, instance)
+	}
+	
 }
