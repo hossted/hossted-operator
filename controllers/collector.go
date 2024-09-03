@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strings"
 
 	networkingv1 "k8s.io/api/networking/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -15,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
 	helm "github.com/hossted/hossted-operator/pkg/helm"
+	"github.com/hossted/hossted-operator/pkg/http"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -142,6 +144,14 @@ type PrimaryCreds struct {
 	} `json:"user"`
 }
 
+type DnsInfo struct {
+	Name      string `json:"name"`
+	Content   string `json:"content"`
+	Type      string `json:"type"`
+	ClusterId string `json:"clusterid"`
+	Env       string `json:"env"`
+}
+
 func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hosstedcomv1.Hosstedproject) ([]*Collector, []int, []hosstedcomv1.HelmInfo, error) {
 	var collectors []*Collector
 	namespaceList, err := r.listNamespaces(ctx)
@@ -202,10 +212,6 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 				}
 			}
 
-			accessInfo, err = r.getAccessInfo(ctx)
-			if err != nil {
-				return nil, nil, nil, err
-			}
 			podHolder, securityHolder, err = r.getPods(ctx, instance.Spec.CVE.Enable, release.Namespace, release.Name)
 			if err != nil {
 				return nil, nil, nil, err
@@ -243,7 +249,10 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 				return nil, nil, nil, err
 			}
 			revisions = append(revisions, helmInfo.Revision)
-
+			accessInfo, err = r.getAccessInfo(ctx, instance, release.Name, helmInfo.AppUUID)
+			if err != nil {
+				return nil, nil, nil, err
+			}
 			// After collecting all HelmInfo structs for this iteration, assign to instance.Status.HelmStatus
 			appInfo := AppInfo{
 				HelmInfo:        helmInfo,
@@ -609,7 +618,7 @@ func isHostedHelm(release helmrelease.Release) bool {
 	}
 }
 
-func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessInfo, error) {
+func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context, instance *hosstedcomv1.Hosstedproject, appName, appUUID string) (*AccessInfo, error) {
 	cm := v1.ConfigMap{}
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Namespace: "hossted-platform",
@@ -708,5 +717,62 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 		return &access, nil
 	}
 
+	err = r.getDns(ctx, instance, pmc.Namespace, appName, appUUID)
+	if err != nil {
+		return &access, err
+	}
+
 	return &access, nil
+}
+
+// getIngDns retrieves ingress and return DnsInfo
+func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hosstedcomv1.Hosstedproject, releaseNamespace, appName, appUUID string) error {
+	ing := &networkingv1.Ingress{}
+	dnsinfo := DnsInfo{}
+	err := r.Client.Get(ctx, types.NamespacedName{
+		Namespace: releaseNamespace,
+		Name:      appName,
+	}, ing)
+	if err != nil {
+		return nil
+	}
+
+	dnsName := appName + "." + appUUID + "." + "f.hossted.app"
+	if ing != (&networkingv1.Ingress{}) {
+		if ing.Status.LoadBalancer.Ingress == nil {
+			fmt.Println("Ingress Status has no Lb address, this can take time if ingress just installed.")
+			return nil
+		}
+		dnsinfo.Content = ing.Status.LoadBalancer.Ingress[0].IP
+		dnsinfo.Name = toLowerCase(dnsName)
+		dnsinfo.ClusterId = instance.Status.ClusterUUID
+		dnsinfo.Type = "A"
+		dnsinfo.Env = "dev"
+	}
+
+	dnsByte, err := json.Marshal(dnsinfo)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.HttpRequest(dnsByte, os.Getenv("HOSSTED_API_URL")+"/clusters/dns")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(dnsByte))
+	fmt.Println(string(resp.ResponseBody))
+
+	if resp.StatusCode == 200 {
+		ing.Spec.Rules[0].Host = toLowerCase(dnsName)
+		err = r.Client.Update(ctx, ing)
+		if err != nil {
+			return err
+		}
+
+	}
+	return nil
+}
+
+func toLowerCase(input string) string {
+	return strings.ToLower(input)
 }

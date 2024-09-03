@@ -4,6 +4,12 @@ env:
   RECONCILE_DURATION: "10s"
   HOSSTED_ORG_ID: ""
   CONTEXT_NAME: ""
+  LOKI_PASSWORD: ""
+  LOKI_URL: ""
+  LOKI_USERNAME: ""
+  MIMIR_PASSWORD: ""
+  MIMIR_URL: ""
+  MIMIR_USERNAME: ""
 
 replicas: 1
 
@@ -32,10 +38,10 @@ primaryCreds:
   namespace: "hossted-keycloak"
   user: 
     key: "KEYCLOAK_ADMIN"
-    configMap: "keycloak-env-vars"
+    configMap: "hossted-keycloak-env-vars"
   password: 
     key: "admin-password"
-    secretName: "keycloak"
+    secretName: "hossted-keycloak"
   
 
 helm:
@@ -44,7 +50,7 @@ helm:
     values: 
       - "ingress.enabled=true"
       - "ingress.hostname=keycloak.hossted.com"
-      - "ingress.ingressClassName=hossted-operator-nginx"
+      - "ingress.ingressClassName=hossted-operator"
       - "auth.adminPassword=hossted-admin-password"
       - "auth.adminUser=hossted-admin" 
     repoName: "keycloak"
