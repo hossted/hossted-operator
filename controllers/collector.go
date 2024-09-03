@@ -737,7 +737,7 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 		return nil
 	}
 
-	dnsName := appName + "." + appUUID + "." + "f.hossted.app"
+	dnsName := appUUID + "." + "f.hossted.app"
 	if ing != (&networkingv1.Ingress{}) {
 		if ing.Status.LoadBalancer.Ingress == nil {
 			fmt.Println("Ingress Status has no Lb address, this can take time if ingress just installed.")
