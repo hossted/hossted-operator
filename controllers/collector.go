@@ -743,7 +743,12 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 			fmt.Println("Ingress Status has no Lb address, this can take time if ingress just installed.")
 			return nil
 		}
-		dnsinfo.Content = ing.Status.LoadBalancer.Ingress[0].IP
+
+		if ing.Status.LoadBalancer.Ingress[0].IP != "" {
+			dnsinfo.Content = ing.Status.LoadBalancer.Ingress[0].IP
+		} else if ing.Status.LoadBalancer.Ingress[0].Hostname != "" {
+			dnsinfo.Content = ing.Status.LoadBalancer.Ingress[0].Hostname
+		}
 		dnsinfo.Name = toLowerCase(dnsName)
 		dnsinfo.ClusterId = instance.Status.ClusterUUID
 		dnsinfo.Type = "A"
