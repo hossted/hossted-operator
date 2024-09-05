@@ -778,12 +778,10 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 			newHelm := helm.Helm{
 				ReleaseName: h.ReleaseName,
 				Namespace:   h.Namespace,
-				Values: []string{
-					"ingress.hostname=" + toLowerCase(dnsName),
-				},
-				RepoName:  h.RepoName,
-				ChartName: h.ChartName,
-				RepoUrl:   h.RepoUrl,
+				Values:      tweakIngressHostname(h.Values, toLowerCase(dnsName)),
+				RepoName:    h.RepoName,
+				ChartName:   h.ChartName,
+				RepoUrl:     h.RepoUrl,
 			}
 			fmt.Println("Perfoming upgrade for ", h.ReleaseName, "with hostname ", toLowerCase(dnsName))
 			err := helm.Upgrade(newHelm)
@@ -797,4 +795,25 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 
 func toLowerCase(input string) string {
 	return strings.ToLower(input)
+}
+
+func tweakIngressHostname(existingStrings []string, dnsName string) []string {
+	updatedStrings := make([]string, 0)
+
+	// Convert the DNS name to lowercase
+	lowercaseDNSName := strings.ToLower(dnsName)
+
+	// Iterate through the existing strings
+	for _, str := range existingStrings {
+		// Check if the string contains "ingress.hostname="
+		if strings.Contains(str, "ingress.hostname=") {
+			// Modify the string by appending the lowercase DNS name
+			str = "ingress.hostname=" + lowercaseDNSName
+		}
+		// Keep the existing string (either modified or original) in the updated list
+		updatedStrings = append(updatedStrings, str)
+	}
+
+	// Return the updated list of strings
+	return updatedStrings
 }
