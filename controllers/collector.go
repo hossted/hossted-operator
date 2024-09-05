@@ -746,12 +746,14 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 
 		if ing.Status.LoadBalancer.Ingress[0].IP != "" {
 			dnsinfo.Content = ing.Status.LoadBalancer.Ingress[0].IP
+			dnsinfo.Type = "A"
 		} else if ing.Status.LoadBalancer.Ingress[0].Hostname != "" {
 			dnsinfo.Content = ing.Status.LoadBalancer.Ingress[0].Hostname
+			dnsinfo.Type = "CNAME"
 		}
 		dnsinfo.Name = toLowerCase(dnsName)
 		dnsinfo.ClusterId = instance.Status.ClusterUUID
-		dnsinfo.Type = "A"
+
 		dnsinfo.Env = "dev"
 	}
 
