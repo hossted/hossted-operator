@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	networkingv1 "k8s.io/api/networking/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -717,6 +718,8 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context, instance *
 		return &access, nil
 	}
 
+	time.Sleep(1 * time.Minute)
+
 	err = r.getDns(ctx, instance, pmc.Namespace, appName, appUUID)
 	if err != nil {
 		return &access, err
@@ -771,15 +774,46 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 
 	if resp.StatusCode == 200 {
 		ing.Spec.Rules[0].Host = toLowerCase(dnsName)
-		err = r.Client.Update(ctx, ing)
-		if err != nil {
-			return err
+		for _, h := range instance.Spec.Helm {
+			newHelm := helm.Helm{
+				ReleaseName: h.ReleaseName,
+				Namespace:   h.Namespace,
+				Values:      tweakIngressHostname(h.Values, toLowerCase(dnsName)),
+				RepoName:    h.RepoName,
+				ChartName:   h.ChartName,
+				RepoUrl:     h.RepoUrl,
+			}
+			fmt.Println("Perfoming upgrade for ", h.ReleaseName, "with hostname ", toLowerCase(dnsName))
+			err := helm.Upgrade(newHelm)
+			if err != nil {
+				return err
+			}
 		}
-
 	}
 	return nil
 }
 
 func toLowerCase(input string) string {
 	return strings.ToLower(input)
+}
+
+func tweakIngressHostname(existingStrings []string, dnsName string) []string {
+	updatedStrings := make([]string, 0)
+
+	// Convert the DNS name to lowercase
+	lowercaseDNSName := strings.ToLower(dnsName)
+
+	// Iterate through the existing strings
+	for _, str := range existingStrings {
+		// Check if the string contains "ingress.hostname="
+		if strings.Contains(str, "ingress.hostname=") {
+			// Modify the string by appending the lowercase DNS name
+			str = "ingress.hostname=" + lowercaseDNSName
+		}
+		// Keep the existing string (either modified or original) in the updated list
+		updatedStrings = append(updatedStrings, str)
+	}
+
+	// Return the updated list of strings
+	return updatedStrings
 }
