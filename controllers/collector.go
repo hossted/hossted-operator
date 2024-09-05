@@ -771,11 +771,23 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 
 	if resp.StatusCode == 200 {
 		ing.Spec.Rules[0].Host = toLowerCase(dnsName)
-		err = r.Client.Update(ctx, ing)
-		if err != nil {
-			return err
+		for _, h := range instance.Spec.Helm {
+			newHelm := helm.Helm{
+				ReleaseName: h.ReleaseName,
+				Namespace:   h.Namespace,
+				Values: []string{
+					"ingress.hostname=" + toLowerCase(dnsName),
+				},
+				RepoName:  h.RepoName,
+				ChartName: h.ChartName,
+				RepoUrl:   h.RepoUrl,
+			}
+			fmt.Println("Perfoming upgrade for ", h.ReleaseName, "with hostname ", toLowerCase(dnsName))
+			err := helm.Upgrade(newHelm)
+			if err != nil {
+				return err
+			}
 		}
-
 	}
 	return nil
 }

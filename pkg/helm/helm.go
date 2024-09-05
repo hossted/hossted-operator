@@ -272,3 +272,61 @@ func DeleteRelease(chartName, namespace string) error {
 	}
 	return nil
 }
+
+func Upgrade(h Helm) error {
+
+	settings := cli.New()
+
+	// Initialize action configuration
+	actionConfig := new(action.Configuration)
+	if err := actionConfig.Init(settings.RESTClientGetter(), h.Namespace, os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
+		return err
+	}
+
+	// Create a new Install action
+	client := action.NewUpgrade(actionConfig)
+	// Setting Namespace
+	settings.SetNamespace(h.Namespace)
+	settings.EnvVars()
+	// Add repository
+	repoAdd(h)
+
+	//RepoUpdate()
+
+	// Locate chart path
+	cp, err := client.ChartPathOptions.LocateChart(fmt.Sprintf("%s/%s", h.RepoName, h.ChartName), settings)
+	if err != nil {
+		return err
+	}
+
+	// Load chart
+	chartRequested, err := loader.Load(cp)
+	if err != nil {
+		return err
+	}
+
+	// Set action options
+	client.Namespace = h.ReleaseName
+	client.Namespace = h.Namespace
+	client.Version = h.Version
+	client.Wait = true
+	client.Timeout = 300 * time.Second
+	client.WaitForJobs = true
+	//client.IncludeCRDs = true
+
+	// Merge values
+	values := values.Options{
+		Values: h.Values,
+	}
+
+	vals, err := values.MergeValues(getter.All(settings))
+	if err != nil {
+		return err
+	}
+	// Run the Install action
+	_, err = client.Run(h.ReleaseName, chartRequested, vals)
+	if err != nil {
+		return err
+	}
+	return nil
+}

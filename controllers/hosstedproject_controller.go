@@ -112,7 +112,6 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 						return ctrl.Result{}, err
 					}
 				}
-
 			}
 		}
 	}
