@@ -718,6 +718,8 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context, instance *
 		return &access, nil
 	}
 
+	time.Sleep(1 * time.Minute)
+
 	err = r.getDns(ctx, instance, pmc.Namespace, appName, appUUID)
 	if err != nil {
 		return &access, err
@@ -737,8 +739,6 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 	if err != nil {
 		return nil
 	}
-
-	time.Sleep(30 * time.Second)
 
 	dnsName := appUUID + "." + "f.hossted.app"
 	if ing != (&networkingv1.Ingress{}) {
