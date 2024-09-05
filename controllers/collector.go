@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	networkingv1 "k8s.io/api/networking/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -736,6 +737,8 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 	if err != nil {
 		return nil
 	}
+
+	time.Sleep(30 * time.Second)
 
 	dnsName := appUUID + "." + "f.hossted.app"
 	if ing != (&networkingv1.Ingress{}) {
