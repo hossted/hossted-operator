@@ -177,6 +177,10 @@ func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instanc
 		return err
 	}
 
+	if err := r.handleIngress(ctx, instance); err != nil {
+		return err
+	}
+
 	if err := r.registerApps(instance, collector, logger); err != nil {
 		return err
 	}
@@ -205,10 +209,6 @@ func (r *HosstedProjectReconciler) handleExistingCluster(ctx context.Context, in
 	}
 
 	err := r.handleMonitoring(ctx, instance)
-	if err != nil {
-		return err
-	}
-	err = r.handleIngress(ctx, instance)
 	if err != nil {
 		return err
 	}

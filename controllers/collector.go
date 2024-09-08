@@ -213,6 +213,11 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 				}
 			}
 
+			err := r.getDns(ctx, instance, helmInfo.Namespace, helmInfo.Name, helmInfo.AppUUID)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+
 			podHolder, securityHolder, err = r.getPods(ctx, instance.Spec.CVE.Enable, release.Namespace, release.Name)
 			if err != nil {
 				return nil, nil, nil, err
@@ -249,8 +254,10 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			if err != nil {
 				return nil, nil, nil, err
 			}
+
 			revisions = append(revisions, helmInfo.Revision)
-			accessInfo, err = r.getAccessInfo(ctx, instance, release.Name, helmInfo.AppUUID)
+
+			accessInfo, err = r.getAccessInfo(ctx)
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -619,7 +626,7 @@ func isHostedHelm(release helmrelease.Release) bool {
 	}
 }
 
-func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context, instance *hosstedcomv1.Hosstedproject, appName, appUUID string) (*AccessInfo, error) {
+func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessInfo, error) {
 	cm := v1.ConfigMap{}
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Namespace: "hossted-platform",
@@ -718,13 +725,6 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context, instance *
 		return &access, nil
 	}
 
-	time.Sleep(1 * time.Minute)
-
-	err = r.getDns(ctx, instance, pmc.Namespace, appName, appUUID)
-	if err != nil {
-		return &access, err
-	}
-
 	return &access, nil
 }
 
@@ -743,7 +743,8 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 	dnsName := appUUID + "." + "f.hossted.app"
 	if ing != (&networkingv1.Ingress{}) {
 		if ing.Status.LoadBalancer.Ingress == nil {
-			fmt.Println("Ingress Status has no Lb address, this can take time if ingress just installed.")
+			fmt.Println("Ingress Status has no Lb address, this can take time if ingress just installed. Waiting for 2 minutes")
+			time.Sleep(2 * time.Minute)
 			return nil
 		}
 
