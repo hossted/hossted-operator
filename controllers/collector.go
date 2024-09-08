@@ -737,7 +737,7 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 	var dnsName string
 	retryCount := 0
 	maxRetries := 5
-	retryInterval := 30 * time.Second
+	retryInterval := 1 * time.Second
 
 	for retryCount < maxRetries {
 		err := r.Client.Get(ctx, types.NamespacedName{
