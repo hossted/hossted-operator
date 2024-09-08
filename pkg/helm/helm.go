@@ -192,7 +192,7 @@ func repoAdd(h Helm) error {
 
 // ListRelease lists Helm releases based on the specified chart name and namespace.
 // It returns an error if any operation fails, otherwise, it returns nil.
-func ListRelease(chartName, namespace string) (bool, error) {
+func ListRelease(releaseName, namespace string) (bool, error) {
 	settings := cli.New()
 
 	// Initialize action configuration
@@ -210,10 +210,15 @@ func ListRelease(chartName, namespace string) (bool, error) {
 		return false, err
 	}
 
+	if len(releases) == 0 {
+		fmt.Println("No release exist, install app", releaseName)
+		return false, nil
+	}
+
 	// Iterate over the releases
 	for _, release := range releases {
 		// Check if the release's chart name matches the specified chart name
-		if release.Chart.Name() == chartName {
+		if release.Name == releaseName {
 			return true, nil
 		}
 	}

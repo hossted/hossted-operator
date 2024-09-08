@@ -213,9 +213,11 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 				}
 			}
 
-			err := r.getDns(ctx, instance, helmInfo.Namespace, helmInfo.Name, helmInfo.AppUUID)
-			if err != nil {
-				return nil, nil, nil, err
+			if instance.Status.DnsUpdated == false {
+				err := r.getDns(ctx, instance, helmInfo.Namespace, helmInfo.Name, helmInfo.AppUUID)
+				if err != nil {
+					return nil, nil, nil, err
+				}
 			}
 
 			podHolder, securityHolder, err = r.getPods(ctx, instance.Spec.CVE.Enable, release.Namespace, release.Name)
@@ -728,37 +730,51 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 	return &access, nil
 }
 
-// getIngDns retrieves ingress and return DnsInfo
+// getIngDns retrieves ingress and returns DnsInfo
 func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hosstedcomv1.Hosstedproject, releaseNamespace, appName, appUUID string) error {
 	ing := &networkingv1.Ingress{}
 	dnsinfo := DnsInfo{}
-	err := r.Client.Get(ctx, types.NamespacedName{
-		Namespace: releaseNamespace,
-		Name:      appName,
-	}, ing)
-	if err != nil {
-		return nil
+	var dnsName string
+	retryCount := 0
+	maxRetries := 5
+	retryInterval := 30 * time.Second
+
+	for retryCount < maxRetries {
+		err := r.Client.Get(ctx, types.NamespacedName{
+			Namespace: releaseNamespace,
+			Name:      appName,
+		}, ing)
+		if err != nil {
+			return err
+		}
+
+		dnsName = appUUID + "." + "f.hossted.app"
+		if ing != (&networkingv1.Ingress{}) {
+			if ing.Status.LoadBalancer.Ingress == nil {
+				fmt.Println("Ingress Status has no LB address, retrying in 30 seconds...")
+				time.Sleep(retryInterval)
+				retryCount++
+				continue
+			}
+
+			if ing.Status.LoadBalancer.Ingress[0].IP != "" {
+				dnsinfo.Content = ing.Status.LoadBalancer.Ingress[0].IP
+				dnsinfo.Type = "A"
+			} else if ing.Status.LoadBalancer.Ingress[0].Hostname != "" {
+				dnsinfo.Content = ing.Status.LoadBalancer.Ingress[0].Hostname
+				dnsinfo.Type = "CNAME"
+			}
+
+			dnsinfo.Name = toLowerCase(dnsName)
+			dnsinfo.ClusterId = instance.Status.ClusterUUID
+			dnsinfo.Env = "dev"
+
+			break // Exit loop if LB is available
+		}
 	}
 
-	dnsName := appUUID + "." + "f.hossted.app"
-	if ing != (&networkingv1.Ingress{}) {
-		if ing.Status.LoadBalancer.Ingress == nil {
-			fmt.Println("Ingress Status has no Lb address, this can take time if ingress just installed. Waiting for 2 minutes")
-			time.Sleep(2 * time.Minute)
-			return nil
-		}
-
-		if ing.Status.LoadBalancer.Ingress[0].IP != "" {
-			dnsinfo.Content = ing.Status.LoadBalancer.Ingress[0].IP
-			dnsinfo.Type = "A"
-		} else if ing.Status.LoadBalancer.Ingress[0].Hostname != "" {
-			dnsinfo.Content = ing.Status.LoadBalancer.Ingress[0].Hostname
-			dnsinfo.Type = "CNAME"
-		}
-		dnsinfo.Name = toLowerCase(dnsName)
-		dnsinfo.ClusterId = instance.Status.ClusterUUID
-
-		dnsinfo.Env = "dev"
+	if retryCount >= maxRetries {
+		return fmt.Errorf("LoadBalancer failed to become available after %d retries", maxRetries)
 	}
 
 	dnsByte, err := json.Marshal(dnsinfo)
@@ -773,23 +789,30 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 	fmt.Println(string(dnsByte))
 	fmt.Println(string(resp.ResponseBody))
 
-	if resp.StatusCode == 200 {
-		ing.Spec.Rules[0].Host = toLowerCase(dnsName)
-		for _, h := range instance.Spec.Helm {
-			newHelm := helm.Helm{
-				ReleaseName: h.ReleaseName,
-				Namespace:   h.Namespace,
-				Values:      tweakIngressHostname(h.Values, toLowerCase(dnsName)),
-				RepoName:    h.RepoName,
-				ChartName:   h.ChartName,
-				RepoUrl:     h.RepoUrl,
-			}
-			fmt.Println("Perfoming upgrade for ", h.ReleaseName, "with hostname ", toLowerCase(dnsName))
-			err := helm.Upgrade(newHelm)
-			if err != nil {
-				return err
-			}
+	//if resp.StatusCode == 200 {
+	ing.Spec.Rules[0].Host = toLowerCase(dnsName)
+	for _, h := range instance.Spec.Helm {
+		newHelm := helm.Helm{
+			ReleaseName: h.ReleaseName,
+			Namespace:   h.Namespace,
+			Values:      tweakIngressHostname(h.Values, toLowerCase(dnsName)),
+			RepoName:    h.RepoName,
+			ChartName:   h.ChartName,
+			RepoUrl:     h.RepoUrl,
 		}
+		fmt.Println("Performing upgrade for ", h.ReleaseName, " with hostname ", toLowerCase(dnsName))
+		err := helm.Upgrade(newHelm)
+		if err != nil {
+			return err
+		}
+
+		instance.Status.DnsUpdated = true
+		// Update status
+		if err := r.Status().Update(ctx, instance); err != nil {
+			return err
+		}
+
+		//	}
 	}
 	return nil
 }

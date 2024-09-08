@@ -99,8 +99,8 @@ spec:
             properties:
               clusterUUID:
                 type: string
-              dnsreponse:
-                type: integer
+              dnsUpdated:
+                type: boolean
               email_id:
                 type: string
               helmStatus:
