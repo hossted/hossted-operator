@@ -135,21 +135,21 @@ func (r *HosstedProjectReconciler) handleReconciliation(ctx context.Context, ins
 		if err := r.Status().Update(ctx, instance); err != nil {
 			return err
 		}
+		logger.Info("Handling Ingress", instance.Status.ClusterUUID)
 
 		if err := r.handleIngress(ctx, instance); err != nil {
 			return err
 		}
 
-		collector, currentRevision, helmStatus, err = r.collector(ctx, instance)
-		if err != nil {
-			return err
-		}
-		err = r.handleNewCluster(ctx, instance, collector, currentRevision, helmStatus, logger)
+		logger.Info("First Deployment perform cluster registration, status updates and app registration", instance.Status.ClusterUUID)
+
+		err = r.handleNewCluster(ctx, instance, logger)
 		if err != nil {
 			return err
 		}
 
 	}
+
 	collector, currentRevision, helmStatus, err = r.collector(ctx, instance)
 	if err != nil {
 		return err
@@ -165,8 +165,17 @@ func (r *HosstedProjectReconciler) handleReconciliation(ctx context.Context, ins
 }
 
 // handleNewCluster handles reconciliation when a new cluster is created.
-func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instance *hosstedcomv1.Hosstedproject, collector []*Collector, currentRevision []int, helmStatus []hosstedcomv1.HelmInfo, logger logr.Logger) error {
+func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instance *hosstedcomv1.Hosstedproject, logger logr.Logger) error {
 
+	logger.Info("Registering Cluster", instance.Status.ClusterUUID)
+	if err := r.registerClusterUUID(instance, instance.Status.ClusterUUID, logger); err != nil {
+		return err
+	}
+
+	collector, currentRevision, helmStatus, err := r.collector(ctx, instance)
+	if err != nil {
+		return err
+	}
 	sort.Ints(currentRevision)
 
 	instance.Status.HelmStatus = helmStatus
@@ -174,14 +183,14 @@ func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instanc
 	instance.Status.LastReconciledTimestamp = time.Now().String()
 	instance.Status.Revision = currentRevision
 
+	logger.Info("Update Status", instance.Status)
+
 	// Update status
 	if err := r.Status().Update(ctx, instance); err != nil {
 		return err
 	}
 
-	if err := r.registerClusterUUID(instance, instance.Status.ClusterUUID, logger); err != nil {
-		return err
-	}
+	logger.Info("Registering Apps")
 
 	if err := r.registerApps(instance, collector, logger); err != nil {
 		return err
