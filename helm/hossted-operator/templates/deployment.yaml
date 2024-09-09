@@ -95,4 +95,4 @@ spec:
       securityContext:
         runAsNonRoot: true
       serviceAccountName: {{ include "hossted-operator.fullname" . }}-controller-manager
-      terminationGracePeriodSeconds: 10
+      terminationGracePeriodSeconds: 120
