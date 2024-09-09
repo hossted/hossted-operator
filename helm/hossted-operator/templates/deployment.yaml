@@ -90,9 +90,8 @@ spec:
             port: 8081
           initialDelaySeconds: 5
           periodSeconds: 10
-        resources: {{- toYaml .Values.operator.resources | nindent 10
-          }}
+        resources: {{- toYaml .Values.operator.resources | nindent 10 }}
       securityContext:
         runAsNonRoot: true
       serviceAccountName: {{ include "hossted-operator.fullname" . }}-controller-manager
-      terminationGracePeriodSeconds: 120
+      terminationGracePeriodSeconds: 300

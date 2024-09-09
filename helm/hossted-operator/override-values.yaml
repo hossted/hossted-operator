@@ -54,6 +54,7 @@ helm:
       - "ingress.ingressClassName=hossted-operator"
       - "auth.adminPassword=hossted-admin-password"
       - "auth.adminUser=hossted-admin" 
+      - "controller.admissionWebhooks.enabled=false"
     repoName: "keycloak"
     chartName: "keycloak"
     repoUrl: "https://charts.bitnami.com/bitnami"
