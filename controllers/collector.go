@@ -184,7 +184,6 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 
 		var (
 			helmInfo          hosstedcomv1.HelmInfo
-			accessInfo        *AccessInfo
 			podHolder         []PodInfo
 			svcHolder         []ServiceInfo
 			pvcHolder         []VolumeInfo
@@ -259,14 +258,14 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 
 			revisions = append(revisions, helmInfo.Revision)
 
-			accessInfo, err = r.getAccessInfo(ctx)
+			accessInfo, err := r.getAccessInfo(ctx)
 			if err != nil {
 				return nil, nil, nil, err
 			}
 			// After collecting all HelmInfo structs for this iteration, assign to instance.Status.HelmStatus
 			appInfo := AppInfo{
 				HelmInfo:        helmInfo,
-				AccessInfo:      *accessInfo,
+				AccessInfo:      accessInfo,
 				PodInfo:         podHolder,
 				StatefulsetInfo: statefulsetHolder,
 				DeploymentInfo:  deploymentHolder,
@@ -628,7 +627,7 @@ func isHostedHelm(release helmrelease.Release) bool {
 	}
 }
 
-func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessInfo, error) {
+func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInfo, error) {
 	cm := v1.ConfigMap{}
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Namespace: "hossted-platform",
@@ -636,9 +635,9 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 	}, &cm)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, nil
+			return AccessInfo{}, nil
 		}
-		return nil, nil
+		return AccessInfo{}, nil
 	}
 
 	var pmc PrimaryCreds
@@ -647,10 +646,10 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 		// Unmarshal the JSON string into the PrimaryCreds struct
 		err = json.Unmarshal([]byte(jsonString), &pmc)
 		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal access-object.json: %w", err)
+			return AccessInfo{}, fmt.Errorf("failed to unmarshal access-object.json: %w", err)
 		}
 	} else {
-		return nil, fmt.Errorf("access-object.json key not found in ConfigMap")
+		return AccessInfo{}, fmt.Errorf("access-object.json key not found in ConfigMap")
 	}
 
 	var user, password []byte
@@ -662,7 +661,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 			Name:      pmc.User.ConfigMap,
 		}, &cmInfo)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get user ConfigMap: %w", err)
+			return AccessInfo{}, fmt.Errorf("failed to get user ConfigMap: %w", err)
 		}
 		user = []byte(cmInfo.Data[pmc.User.Key])
 	} else if pmc.User.SecretName != "" {
@@ -672,7 +671,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 			Name:      pmc.User.SecretName,
 		}, &secretInfo)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get user Secret: %w", err)
+			return AccessInfo{}, fmt.Errorf("failed to get user Secret: %w", err)
 		}
 		user = secretInfo.Data[pmc.User.Key]
 	}
@@ -685,7 +684,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 			Name:      pmc.Password.SecretName,
 		}, &secretInfo)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get password Secret: %w", err)
+			return AccessInfo{}, fmt.Errorf("failed to get password Secret: %w", err)
 		}
 		password = secretInfo.Data[pmc.Password.Key]
 	} else if pmc.Password.ConfigMap != "" {
@@ -695,7 +694,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 			Name:      pmc.Password.ConfigMap,
 		}, &cmInfo)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get password ConfigMap: %w", err)
+			return AccessInfo{}, fmt.Errorf("failed to get password ConfigMap: %w", err)
 		}
 		password = []byte(cmInfo.Data[pmc.Password.Key])
 	}
@@ -704,7 +703,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 	ingressList := networkingv1.IngressList{}
 	err = r.Client.List(ctx, &ingressList, &client.ListOptions{Namespace: pmc.Namespace})
 	if err != nil {
-		return nil, fmt.Errorf("failed to list Ingresses: %w", err)
+		return AccessInfo{}, fmt.Errorf("failed to list Ingresses: %w", err)
 	}
 
 	ingressClassName := "hossted-operator"
@@ -724,10 +723,10 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (*AccessIn
 
 	if len(access.URLs) == 0 {
 		fmt.Printf("no matching Ingress found with class %s\n", ingressClassName)
-		return &access, nil
+		return AccessInfo{}, nil
 	}
 
-	return &access, nil
+	return access, nil
 }
 
 // getIngDns retrieves ingress and returns DnsInfo
@@ -737,7 +736,7 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 	var dnsName string
 	retryCount := 0
 	maxRetries := 5
-	retryInterval := 1 * time.Second
+	retryInterval := 10 * time.Second
 
 	for retryCount < maxRetries {
 		err := r.Client.Get(ctx, types.NamespacedName{

@@ -1,13 +1,6 @@
 apiVersion: hossted.com/v1
 kind: Hosstedproject
 metadata:
-  labels:
-    app.kubernetes.io/component: hosstedproject-cr
-    app.kubernetes.io/instance: hossted-operator
-    app.kubernetes.io/managed-by: Helm
-    app.kubernetes.io/name: hossted
-    app.kubernetes.io/version: 0.4.4
-    helm.sh/chart: hossted-operator-0.4.4
   name: hossted-operator-cr
 spec:
   cve:
@@ -26,14 +19,14 @@ spec:
     repoUrl: https://charts.bitnami.com/bitnami
     values:
     - ingress.enabled=true
-    - ingress.hostname=keycloak.hossted.com
+    - ingress.hostname=keycloak.f.hossted.com
     - ingress.ingressClassName=hossted-operator
     - auth.adminPassword=hossted-admin-password
     - auth.adminUser=hossted-admin
   ingress:
-    enable: true
+    enable: false
   logging:
-    enable: true
+    enable: false
   monitoring:
     enable: false
   stop: true

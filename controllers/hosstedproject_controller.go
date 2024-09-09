@@ -390,10 +390,10 @@ func (r *HosstedProjectReconciler) handleIngress(ctx context.Context, instance *
 	// Helm configuration for ingress controller
 	ing := helm.Helm{
 		ReleaseName: "hossted-ingress-nginx",
+		Namespace:   "hossted-platform",
 		ChartName:   "ingress-nginx",
 		RepoName:    "ingress-nginx",
 		RepoUrl:     "https://kubernetes.github.io/ingress-nginx",
-		Namespace:   "hossted-platform",
 		Version:     "4.11.1",
 		Values: []string{
 			"controller.replicaCount=2",
