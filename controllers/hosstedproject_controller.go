@@ -414,6 +414,7 @@ func (r *HosstedProjectReconciler) handleIngress(ctx context.Context, instance *
 			"controller.ingressClassResource.controllerValue=k8s.io/hossted-operator",
 			"controller.ingressClassResource.enabled=true",
 			"controller.ingressClass=hossted-operator",
+			"controller.admissionWebhooks.enabled=false",
 		},
 	}
 
