@@ -25,7 +25,7 @@ monitoring:
 logging:
   enable: false
 ingress:
-  enable: true
+  enable: false
 
 nameOverride: hossted
 
@@ -49,11 +49,11 @@ helm:
     namespace: "hossted-keycloak"
     values: 
       - "ingress.enabled=true"
+      - "ingress.tls=true"
       - "ingress.hostname=keycloak.hossted.com"
       - "ingress.ingressClassName=hossted-operator"
       - "auth.adminPassword=hossted-admin-password"
-      - "auth.adminUser=hossted-admin" 
-      - "controller.admissionWebhooks.enabled=false"
+      - "auth.adminUser=hossted-admin"
     repoName: "keycloak"
     chartName: "keycloak"
     repoUrl: "https://charts.bitnami.com/bitnami"

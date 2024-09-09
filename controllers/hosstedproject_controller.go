@@ -144,6 +144,7 @@ func (r *HosstedProjectReconciler) handleReconciliation(ctx context.Context, ins
 		logger.Info("First Deployment perform cluster registration, status updates and app registration")
 
 		err = r.handleNewCluster(ctx, instance, logger)
+
 		if err != nil {
 			return err
 		}
@@ -413,6 +414,7 @@ func (r *HosstedProjectReconciler) handleIngress(ctx context.Context, instance *
 			"controller.ingressClassResource.controllerValue=k8s.io/hossted-operator",
 			"controller.ingressClassResource.enabled=true",
 			"controller.ingressClass=hossted-operator",
+			"controller.admissionWebhooks.enabled=false",
 		},
 	}
 

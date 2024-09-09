@@ -213,7 +213,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			}
 
 			if instance.Status.DnsUpdated == false {
-				err := r.getDns(ctx, instance, helmInfo.Namespace, helmInfo.Name, helmInfo.AppUUID)
+				err := r.getDns(ctx, instance, release.Namespace, release.Name, helmInfo.AppUUID)
 				if err != nil {
 					return nil, nil, nil, err
 				}
@@ -731,6 +731,36 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 
 // getIngDns retrieves ingress and returns DnsInfo
 func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hosstedcomv1.Hosstedproject, releaseNamespace, appName, appUUID string) error {
+
+	cm := v1.ConfigMap{}
+	err := r.Client.Get(ctx, types.NamespacedName{
+		Namespace: "hossted-platform",
+		Name:      "access-object-info",
+	}, &cm)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return err
+		}
+		return err
+	}
+
+	var pmc PrimaryCreds
+	// Extract the JSON string from the ConfigMap's data
+	if jsonString, ok := cm.Data["access-object.json"]; ok {
+		// Unmarshal the JSON string into the PrimaryCreds struct
+		err = json.Unmarshal([]byte(jsonString), &pmc)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal access-object.json: %w", err)
+		}
+	} else {
+		return fmt.Errorf("access-object.json key not found in ConfigMap")
+	}
+
+	if releaseNamespace != pmc.Namespace {
+		fmt.Println("Release Namespace ", releaseNamespace, "not a marketplace app, ignoring")
+		return nil
+	}
+
 	ing := &networkingv1.Ingress{}
 	dnsinfo := DnsInfo{}
 	var dnsName string
@@ -740,8 +770,8 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 
 	for retryCount < maxRetries {
 		err := r.Client.Get(ctx, types.NamespacedName{
-			Namespace: releaseNamespace,
-			Name:      appName,
+			Namespace: pmc.Namespace,
+			Name:      pmc.Namespace,
 		}, ing)
 		if err != nil {
 			return err
