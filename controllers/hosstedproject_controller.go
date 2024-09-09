@@ -135,13 +135,13 @@ func (r *HosstedProjectReconciler) handleReconciliation(ctx context.Context, ins
 		if err := r.Status().Update(ctx, instance); err != nil {
 			return err
 		}
-		logger.Info("Handling Ingress", instance.Status.ClusterUUID)
+		logger.Info("Handling Ingress")
 
 		if err := r.handleIngress(ctx, instance); err != nil {
 			return err
 		}
 
-		logger.Info("First Deployment perform cluster registration, status updates and app registration", instance.Status.ClusterUUID)
+		logger.Info("First Deployment perform cluster registration, status updates and app registration")
 
 		err = r.handleNewCluster(ctx, instance, logger)
 		if err != nil {
@@ -167,7 +167,7 @@ func (r *HosstedProjectReconciler) handleReconciliation(ctx context.Context, ins
 // handleNewCluster handles reconciliation when a new cluster is created.
 func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instance *hosstedcomv1.Hosstedproject, logger logr.Logger) error {
 
-	logger.Info("Registering Cluster", instance.Status.ClusterUUID)
+	logger.Info("Registering Cluster")
 	if err := r.registerClusterUUID(instance, instance.Status.ClusterUUID, logger); err != nil {
 		return err
 	}
@@ -183,7 +183,7 @@ func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instanc
 	instance.Status.LastReconciledTimestamp = time.Now().String()
 	instance.Status.Revision = currentRevision
 
-	logger.Info("Update Status", instance.Status)
+	logger.Info("Update Status")
 
 	// Update status
 	if err := r.Status().Update(ctx, instance); err != nil {
