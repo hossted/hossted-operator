@@ -67,7 +67,7 @@ type HosstedprojectStatus struct {
 	ReconciledHelmReleases  map[string]string `json:"reconcileHelmReleases,omitempty"`
 	HelmStatus              []HelmInfo        `json:"helmStatus,omitempty"`
 	Revision                []int             `json:"revision,omitempty"`
-	DnsResponse             int               `json:"dnsreponse,omitempty"`
+	DnsUpdated              bool              `json:"dnsUpdated,omitempty"`
 }
 
 // Define HelmInfo struct

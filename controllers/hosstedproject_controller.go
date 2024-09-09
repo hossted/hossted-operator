@@ -102,10 +102,11 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 					ChartName:   h.ChartName,
 					RepoUrl:     h.RepoUrl,
 				}
-				ok, err := helm.ListRelease(h.ChartName, h.Namespace)
+				ok, err := helm.ListRelease(h.ReleaseName, h.Namespace)
 				if err != nil {
 					return ctrl.Result{}, err
 				}
+				fmt.Println(ok, newHelm)
 				if !ok {
 					err := helm.Apply(newHelm)
 					if err != nil {
@@ -134,6 +135,11 @@ func (r *HosstedProjectReconciler) handleReconciliation(ctx context.Context, ins
 		if err := r.Status().Update(ctx, instance); err != nil {
 			return err
 		}
+
+		if err := r.handleIngress(ctx, instance); err != nil {
+			return err
+		}
+
 		collector, currentRevision, helmStatus, err = r.collector(ctx, instance)
 		if err != nil {
 			return err
@@ -205,10 +211,6 @@ func (r *HosstedProjectReconciler) handleExistingCluster(ctx context.Context, in
 	}
 
 	err := r.handleMonitoring(ctx, instance)
-	if err != nil {
-		return err
-	}
-	err = r.handleIngress(ctx, instance)
 	if err != nil {
 		return err
 	}
