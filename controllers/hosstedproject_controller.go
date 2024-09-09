@@ -140,10 +140,6 @@ func (r *HosstedProjectReconciler) handleReconciliation(ctx context.Context, ins
 			return err
 		}
 
-		collector, currentRevision, helmStatus, err = r.collector(ctx, instance)
-		if err != nil {
-			return err
-		}
 		err = r.handleNewCluster(ctx, instance, collector, currentRevision, helmStatus, logger)
 		if err != nil {
 			return err

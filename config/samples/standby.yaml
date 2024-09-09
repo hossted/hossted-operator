@@ -19,14 +19,15 @@ spec:
     repoUrl: https://charts.bitnami.com/bitnami
     values:
     - ingress.enabled=true
+    - ingress.tls=true
     - ingress.hostname=keycloak.f.hossted.com
     - ingress.ingressClassName=hossted-operator
     - auth.adminPassword=hossted-admin-password
     - auth.adminUser=hossted-admin
   ingress:
-    enable: false
+    enable: true
   logging:
     enable: false
   monitoring:
     enable: false
-  stop: true
+  stop: false
