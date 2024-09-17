@@ -101,8 +101,6 @@ spec:
                 type: string
               dnsUpdated:
                 type: boolean
-              email_id:
-                type: string
               helmStatus:
                 items:
                   description: Define HelmInfo struct

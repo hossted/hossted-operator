@@ -62,7 +62,6 @@ type Ingress struct {
 // HosstedprojectStatus defines the observed state of Hosstedproject
 type HosstedprojectStatus struct {
 	ClusterUUID             string            `json:"clusterUUID,omitempty"`
-	EmailID                 string            `json:"email_id,omitempty"`
 	LastReconciledTimestamp string            `json:"lastReconcileTimestamp,omitempty"`
 	ReconciledHelmReleases  map[string]string `json:"reconcileHelmReleases,omitempty"`
 	HelmStatus              []HelmInfo        `json:"helmStatus,omitempty"`
