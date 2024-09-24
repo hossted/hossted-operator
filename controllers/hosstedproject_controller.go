@@ -180,7 +180,6 @@ func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instanc
 	sort.Ints(currentRevision)
 
 	instance.Status.HelmStatus = helmStatus
-	instance.Status.EmailID = os.Getenv("EMAIL_ID")
 	instance.Status.LastReconciledTimestamp = time.Now().String()
 	instance.Status.Revision = currentRevision
 
@@ -258,7 +257,6 @@ func (r *HosstedProjectReconciler) registerClusterUUID(instance *hosstedcomv1.Ho
 	clusterUUIDRegPath := os.Getenv("HOSSTED_API_URL") + "/clusters/" + clusterUUID + "/register"
 
 	type clusterUUIDBody struct {
-		Email        string `json:"email"`
 		ReqType      string `json:"type"`
 		OrgID        string `json:"org_id"`
 		ContextName  string `json:"context_name"`
@@ -271,7 +269,6 @@ func (r *HosstedProjectReconciler) registerClusterUUID(instance *hosstedcomv1.Ho
 	}
 
 	clusterUUIDBodyReq := clusterUUIDBody{
-		Email:       instance.Status.EmailID,
 		ReqType:     "k8s",
 		OrgID:       os.Getenv("HOSSTED_ORG_ID"),
 		ContextName: os.Getenv("CONTEXT_NAME"),

@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -134,11 +135,15 @@ type SecurityInfoContainer struct {
 type PrimaryCreds struct {
 	Namespace string `json:"namespace"`
 	Password  struct {
+		Type       string `json:"type,omitempty"`
+		Text       string `json:"text,omitempty"`
 		Key        string `json:"key"`
 		SecretName string `json:"secretName,omitempty"`
 		ConfigMap  string `json:"configMap,omitempty"`
 	} `json:"password"`
 	User struct {
+		Type       string `json:"type,omitempty"`
+		Text       string `json:"text,omitempty"`
 		SecretName string `json:"secretName,omitempty"`
 		ConfigMap  string `json:"configMap,omitempty"`
 		Key        string `json:"key"`
@@ -213,7 +218,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			}
 
 			if instance.Status.DnsUpdated == false {
-				err := r.getDns(ctx, instance, release.Namespace, release.Name, helmInfo.AppUUID)
+				err := r.getDns(ctx, instance, release.Namespace, helmInfo.AppUUID)
 				if err != nil {
 					return nil, nil, nil, err
 				}
@@ -262,6 +267,8 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			if err != nil {
 				return nil, nil, nil, err
 			}
+
+			fmt.Printf("%+v", accessInfo)
 			// After collecting all HelmInfo structs for this iteration, assign to instance.Status.HelmStatus
 			appInfo := AppInfo{
 				HelmInfo:        helmInfo,
@@ -652,7 +659,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 		return AccessInfo{}, fmt.Errorf("access-object.json key not found in ConfigMap")
 	}
 
-	var user, password []byte
+	var user, password string
 	// Fetch user from ConfigMap or Secret
 	if pmc.User.ConfigMap != "" {
 		cmInfo := v1.ConfigMap{}
@@ -663,7 +670,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 		if err != nil {
 			return AccessInfo{}, fmt.Errorf("failed to get user ConfigMap: %w", err)
 		}
-		user = []byte(cmInfo.Data[pmc.User.Key])
+		user = cmInfo.Data[pmc.User.Key]
 	} else if pmc.User.SecretName != "" {
 		secretInfo := v1.Secret{}
 		err := r.Client.Get(ctx, types.NamespacedName{
@@ -673,7 +680,15 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 		if err != nil {
 			return AccessInfo{}, fmt.Errorf("failed to get user Secret: %w", err)
 		}
-		user = secretInfo.Data[pmc.User.Key]
+		// Check if the user type is "text", if so, search for the value in the file
+		if pmc.User.Type == "file" {
+			user, err = searchForTextInFile(string(secretInfo.Data[pmc.User.Key]), pmc.User.Text)
+			if err != nil {
+				return AccessInfo{}, fmt.Errorf("failed to find text '%s' in user Secret: %w", pmc.User.Text, err)
+			}
+		} else {
+			user = string(secretInfo.Data[pmc.User.Key])
+		}
 	}
 
 	// Fetch password from Secret or ConfigMap
@@ -686,7 +701,15 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 		if err != nil {
 			return AccessInfo{}, fmt.Errorf("failed to get password Secret: %w", err)
 		}
-		password = secretInfo.Data[pmc.Password.Key]
+		password = string(secretInfo.Data[pmc.Password.Key])
+
+		// If the password type is "text", search for the text value inside the secret file
+		if pmc.Password.Type == "file" {
+			password, err = searchForTextInFile(string(secretInfo.Data[pmc.Password.Key]), pmc.Password.Text)
+			if err != nil {
+				return AccessInfo{}, fmt.Errorf("failed to find text '%s' in password Secret: %w", pmc.Password.Text, err)
+			}
+		}
 	} else if pmc.Password.ConfigMap != "" {
 		cmInfo := v1.ConfigMap{}
 		err := r.Client.Get(ctx, types.NamespacedName{
@@ -696,9 +719,10 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 		if err != nil {
 			return AccessInfo{}, fmt.Errorf("failed to get password ConfigMap: %w", err)
 		}
-		password = []byte(cmInfo.Data[pmc.Password.Key])
+		password = cmInfo.Data[pmc.Password.Key]
 	}
 
+	// Create AccessInfo from the retrieved credentials
 	access := AccessInfo{}
 	ingressList := networkingv1.IngressList{}
 	err = r.Client.List(ctx, &ingressList, &client.ListOptions{Namespace: pmc.Namespace})
@@ -713,8 +737,8 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 				url := ingress.Spec.Rules[0].Host
 				urlInfo := URLInfo{
 					URL:      url,
-					User:     string(user),
-					Password: string(password),
+					User:     user,
+					Password: password,
 				}
 				access.URLs = append(access.URLs, urlInfo)
 			}
@@ -730,7 +754,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 }
 
 // getIngDns retrieves ingress and returns DnsInfo
-func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hosstedcomv1.Hosstedproject, releaseNamespace, appName, appUUID string) error {
+func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hosstedcomv1.Hosstedproject, releaseNamespace, appUUID string) error {
 
 	cm := v1.ConfigMap{}
 	err := r.Client.Get(ctx, types.NamespacedName{
@@ -869,4 +893,20 @@ func tweakIngressHostname(existingStrings []string, dnsName string) []string {
 
 	// Return the updated list of strings
 	return updatedStrings
+}
+func searchForTextInFile(fileContent, searchText string) (string, error) {
+	scanner := bufio.NewScanner(strings.NewReader(fileContent))
+	for scanner.Scan() {
+		line := scanner.Text()
+		// Check if the line contains the search text
+		if strings.HasPrefix(line, searchText) {
+			// Split the line based on '=' to get the value
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				// Return the value after trimming spaces
+				return strings.TrimSpace(parts[1]), nil
+			}
+		}
+	}
+	return "", fmt.Errorf("text '%s' not found in the file", searchText)
 }
