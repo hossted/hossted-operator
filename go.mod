@@ -1,6 +1,6 @@
 module github.com/hossted/hossted-operator
 
-go 1.22.2
+go 1.22.4
 
 require (
 	github.com/aquasecurity/trivy-operator v0.18.5
@@ -17,6 +17,8 @@ require (
 	k8s.io/client-go v0.29.1
 	sigs.k8s.io/controller-runtime v0.17.0
 )
+
+require github.com/docker/docker v27.1.1+incompatible // indirect
 
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect
@@ -45,9 +47,9 @@ require (
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/distribution/reference v0.5.0 // indirect
-	github.com/docker/cli v25.0.1+incompatible // indirect
+	github.com/docker/cli v27.1.1+incompatible // indirect
 	github.com/docker/distribution v2.8.3+incompatible // indirect
-	github.com/docker/docker v26.0.1+incompatible // indirect
+	// Fixed vulnerability CVE-2024-41110, CVE-2024-32473
 	github.com/docker/docker-credential-helpers v0.8.0 // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
@@ -170,6 +172,6 @@ require (
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/kustomize/api v0.15.0 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.15.0 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirecmt
+	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect; indirecmt
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
