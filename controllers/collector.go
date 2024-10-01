@@ -758,15 +758,17 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 	}
 
 	if pmc.Secret.Name != "" {
-		err = createBasicAuthSecret(ctx, r, pmc.Namespace, pmc.Secret.Name, buser, bpassword)
-		if err != nil {
-			return AccessInfo{}, fmt.Errorf("failed to create basic-auth secret: %w", err)
+		if pmc.Secret.Type == "basic-auth" {
+			err = createBasicAuthSecret(ctx, r, pmc.Namespace, pmc.Secret.Name, buser, bpassword)
+			if err != nil {
+				return AccessInfo{}, fmt.Errorf("failed to create basic-auth secret: %w", err)
+			}
+			urlInfo := URLInfo{
+				User:     buser,
+				Password: bpassword,
+			}
+			access.URLs = append(access.URLs, urlInfo)
 		}
-		urlInfo := URLInfo{
-			User:     buser,
-			Password: bpassword,
-		}
-		access.URLs = append(access.URLs, urlInfo)
 	}
 
 	if len(access.URLs) == 0 {
