@@ -10,6 +10,7 @@ env:
   MIMIR_PASSWORD: ""
   MIMIR_URL: ""
   MIMIR_USERNAME: ""
+  CLOUD_PROVIDER: "azure"
 
 replicas: 1
 
