@@ -418,7 +418,7 @@ func (r *HosstedProjectReconciler) handleIngress(instance *hosstedcomv1.Hosstedp
 	if os.Getenv("CLOUD_PROVIDER") == "azure" {
 		// Add Azure-specific annotations to the service
 		ing.Values = append(ing.Values,
-			"controller.service.annotations.service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path=/healthz",
+			"controller.service.annotations.service\\.beta\\.kubernetes\\.io/azure-load-balancer-health-probe-request-path=/healthz",
 		)
 	}
 
