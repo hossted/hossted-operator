@@ -84,7 +84,7 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// Check if reconciliation should proceed
-	if !instance.Spec.Stop {
+	if instance.Spec.Stop {
 		err = r.handleReconciliation(ctx, instance, logger)
 		if err != nil {
 			return ctrl.Result{}, err

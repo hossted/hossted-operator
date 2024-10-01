@@ -37,12 +37,10 @@ operator:
 
 primaryCreds:
   namespace: "hossted-keycloak"
-  user: 
-    key: "KEYCLOAK_ADMIN"
-    configMap: "hossted-keycloak-env-vars"
-  password: 
-    key: "admin-password"
-    secretName: "hossted-keycloak"
+  secret: 
+    type: "basic-auth"
+    name: "keycloak-basic-auth"
+    value: "user:password"
   
 
 helm:

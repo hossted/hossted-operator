@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"regexp"
 	"sort"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	networkingv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	trivy "github.com/aquasecurity/trivy-operator/pkg/apis/aquasecurity/v1alpha1"
@@ -21,6 +23,7 @@ import (
 	"github.com/hossted/hossted-operator/pkg/http"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -133,21 +136,26 @@ type SecurityInfoContainer struct {
 }
 
 type PrimaryCreds struct {
-	Namespace string `json:"namespace"`
+	Namespace string `json:"namespace,omitempty"`
 	Password  struct {
 		Type       string `json:"type,omitempty"`
 		Text       string `json:"text,omitempty"`
 		Key        string `json:"key"`
 		SecretName string `json:"secretName,omitempty"`
 		ConfigMap  string `json:"configMap,omitempty"`
-	} `json:"password"`
+	} `json:"password,omitempty"`
 	User struct {
 		Type       string `json:"type,omitempty"`
 		Text       string `json:"text,omitempty"`
 		SecretName string `json:"secretName,omitempty"`
 		ConfigMap  string `json:"configMap,omitempty"`
 		Key        string `json:"key"`
-	} `json:"user"`
+	} `json:"user,omitempty"`
+	Secret struct {
+		Type  string `json:"type,omitempty"`
+		Name  string `json:"name,omitempty"`
+		Value string `json:"value,omitempty"`
+	} `json:"secret,omitempty"`
 }
 
 type DnsInfo struct {
@@ -303,13 +311,6 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 		sort.Ints(revisions)
 
 	}
-	// Convert map values to slice
-
-	// for _, helmInfo := range helmStatusMap {
-	// 	fmt.Println("Helm status map ", helmInfo)
-	// 	helmStatus = append(helmStatus, helmInfo)
-
-	// }
 
 	return collectors, revisions, helmStatus, nil
 }
@@ -745,8 +746,31 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 		}
 	}
 
+	// Extract user and password from pmc.Secret.Value (format: "user:password")
+	var buser, bpassword string
+	if pmc.Secret.Name != "" && pmc.Secret.Value != "" {
+		creds := strings.SplitN(pmc.Secret.Value, ":", 2)
+		if len(creds) != 2 {
+			return AccessInfo{}, fmt.Errorf("invalid format for secret value, expected 'user:password'")
+		}
+		buser = creds[0]
+		bpassword = creds[1]
+	}
+
+	if pmc.Secret.Name != "" {
+		err = createBasicAuthSecret(ctx, r, pmc.Namespace, pmc.Secret.Name, buser, bpassword)
+		if err != nil {
+			return AccessInfo{}, fmt.Errorf("failed to create basic-auth secret: %w", err)
+		}
+		urlInfo := URLInfo{
+			User:     buser,
+			Password: bpassword,
+		}
+		access.URLs = append(access.URLs, urlInfo)
+	}
+
 	if len(access.URLs) == 0 {
-		fmt.Printf("no matching Ingress found with class %s\n", ingressClassName)
+		log.Printf("no matching Ingress found with class %s\n", ingressClassName)
 		return AccessInfo{}, nil
 	}
 
@@ -804,7 +828,7 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 		dnsName = appUUID + "." + "f.hossted.app"
 		if ing != (&networkingv1.Ingress{}) {
 			if ing.Status.LoadBalancer.Ingress == nil {
-				fmt.Println("Ingress Status has no LB address, retrying in 30 seconds...")
+				log.Print("Ingress Status has no LB address, retrying in 30 seconds...")
 				time.Sleep(retryInterval)
 				retryCount++
 				continue
@@ -894,6 +918,7 @@ func tweakIngressHostname(existingStrings []string, dnsName string) []string {
 	// Return the updated list of strings
 	return updatedStrings
 }
+
 func searchForTextInFile(fileContent, searchText string) (string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(fileContent))
 	for scanner.Scan() {
@@ -909,4 +934,38 @@ func searchForTextInFile(fileContent, searchText string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("text '%s' not found in the file", searchText)
+}
+
+// Helper function to create a Kubernetes Secret for basic authentication
+func createBasicAuthSecret(ctx context.Context, r *HosstedProjectReconciler, namespace, secretName, user, password string) error {
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: namespace,
+		},
+		Type: v1.SecretTypeBasicAuth,
+		StringData: map[string]string{
+			"username": user,
+			"password": password,
+		},
+	}
+
+	// Check if the secret already exists
+	err := r.Client.Get(ctx, types.NamespacedName{
+		Namespace: namespace,
+		Name:      secretName,
+	}, &v1.Secret{})
+	if err != nil && errors.IsNotFound(err) {
+		// Secret does not exist, create it
+		err = r.Client.Create(ctx, secret)
+		if err != nil {
+			return fmt.Errorf("failed to create basic-auth secret: %w", err)
+		}
+		log.Printf("Secret %s created successfully in namespace %s\n", secretName, namespace)
+	} else if err != nil {
+		// Other errors
+		return fmt.Errorf("failed to get basic-auth secret: %w", err)
+	}
+
+	return nil
 }
