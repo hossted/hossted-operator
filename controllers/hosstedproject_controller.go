@@ -137,7 +137,7 @@ func (r *HosstedProjectReconciler) handleReconciliation(ctx context.Context, ins
 		}
 		logger.Info("Handling Ingress")
 
-		if err := r.handleIngress(ctx, instance); err != nil {
+		if err := r.handleIngress(instance); err != nil {
 			return err
 		}
 
@@ -391,8 +391,7 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 	return nil
 }
 
-// enable ingress controller
-func (r *HosstedProjectReconciler) handleIngress(ctx context.Context, instance *hosstedcomv1.Hosstedproject) error {
+func (r *HosstedProjectReconciler) handleIngress(instance *hosstedcomv1.Hosstedproject) error {
 
 	// Helm configuration for ingress controller
 	ing := helm.Helm{
@@ -413,6 +412,14 @@ func (r *HosstedProjectReconciler) handleIngress(ctx context.Context, instance *
 			"controller.ingressClass=hossted-operator",
 			"controller.admissionWebhooks.enabled=false",
 		},
+	}
+
+	// Check if the environment variable CLOUD_PROVIDER is set to azure
+	if os.Getenv("CLOUD_PROVIDER") == "azure" {
+		// Add Azure-specific annotations to the service
+		ing.Values = append(ing.Values,
+			"controller.service.annotations.service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path=/healthz",
+		)
 	}
 
 	// Check if monitoring is enabled
