@@ -3,6 +3,7 @@ package controllers
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -276,7 +278,6 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 				return nil, nil, nil, err
 			}
 
-			fmt.Printf("%+v", accessInfo)
 			// After collecting all HelmInfo structs for this iteration, assign to instance.Status.HelmStatus
 			appInfo := AppInfo{
 				HelmInfo:        helmInfo,
@@ -744,7 +745,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 
 	if pmc.Secret.Name != "" {
 		if pmc.Secret.Type == "basic-auth" {
-			err = createBasicAuthSecret(ctx, r, pmc.Namespace, pmc.Secret.Name, buser, bpassword)
+			_, err = createBasicAuthSecret(ctx, r, pmc.Namespace, pmc.Secret.Name, buser, bpassword)
 			if err != nil {
 				return AccessInfo{}, fmt.Errorf("failed to create basic-auth secret: %w", err)
 			}
@@ -760,14 +761,14 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 				if user != "" && password != "" {
 					urlInfo = URLInfo{
 						URL:      url,
-						User:     user,
-						Password: password,
+						User:     toBase64(user),
+						Password: toBase64(password),
 					}
 				} else {
 					urlInfo = URLInfo{
 						URL:      url,
-						User:     buser,
-						Password: bpassword,
+						User:     toBase64(buser),
+						Password: toBase64(bpassword),
 					}
 				}
 				access.URLs = append(access.URLs, urlInfo)
@@ -775,7 +776,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 		}
 	}
 
-	fmt.Println(access)
+	log.Printf("access info object %v", access)
 
 	if len(access.URLs) == 0 {
 		log.Printf("no matching Ingress found with class %s\n", ingressClassName)
@@ -813,7 +814,7 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 	}
 
 	if releaseNamespace != pmc.Namespace {
-		fmt.Println("Release Namespace ", releaseNamespace, "not a marketplace app, ignoring")
+		log.Println("Release Namespace ", releaseNamespace, "not a marketplace app, ignoring")
 		return nil
 	}
 
@@ -871,8 +872,9 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 	if err != nil {
 		return err
 	}
-	fmt.Println(string(dnsByte))
-	fmt.Println(string(resp.ResponseBody))
+
+	log.Println(string(dnsByte))
+	log.Println(string(resp.ResponseBody))
 
 	//if resp.StatusCode == 200 {
 	ing.Spec.Rules[0].Host = toLowerCase(dnsName)
@@ -885,7 +887,7 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 			ChartName:   h.ChartName,
 			RepoUrl:     h.RepoUrl,
 		}
-		fmt.Println("Performing upgrade for ", h.ReleaseName, " with hostname ", toLowerCase(dnsName))
+		log.Println("Performing upgrade for ", h.ReleaseName, " with hostname ", toLowerCase(dnsName))
 		err := helm.Upgrade(newHelm)
 		if err != nil {
 			return err
@@ -945,35 +947,50 @@ func searchForTextInFile(fileContent, searchText string) (string, error) {
 }
 
 // Helper function to create a Kubernetes Secret for basic authentication
-func createBasicAuthSecret(ctx context.Context, r *HosstedProjectReconciler, namespace, secretName, user, password string) error {
+func createBasicAuthSecret(ctx context.Context, r *HosstedProjectReconciler, namespace, secretName, user, password string) (string, error) {
+	// Generate bcrypt hash of the password (similar to htpasswd)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	// Base64 encode the "username:hashedPassword" as expected for basic auth
+	auth := []byte(fmt.Sprintf("%s:%s", user, string(hashedPassword)))
+
+	// Create the Secret object
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
 			Namespace: namespace,
 		},
-		Type: v1.SecretTypeBasicAuth,
-		StringData: map[string]string{
-			"username": user,
-			"password": password,
+		Type: v1.SecretTypeOpaque,
+		Data: map[string][]byte{
+			"auth": auth,
 		},
 	}
 
 	// Check if the secret already exists
-	err := r.Client.Get(ctx, types.NamespacedName{
+	existingSecret := &v1.Secret{}
+	err = r.Client.Get(ctx, types.NamespacedName{
 		Namespace: namespace,
 		Name:      secretName,
-	}, &v1.Secret{})
+	}, existingSecret)
 	if err != nil && errors.IsNotFound(err) {
 		// Secret does not exist, create it
 		err = r.Client.Create(ctx, secret)
 		if err != nil {
-			return fmt.Errorf("failed to create basic-auth secret: %w", err)
+			return "", fmt.Errorf("failed to create basic-auth secret: %w", err)
 		}
 		log.Printf("Secret %s created successfully in namespace %s\n", secretName, namespace)
 	} else if err != nil {
 		// Other errors
-		return fmt.Errorf("failed to get basic-auth secret: %w", err)
+		return "", fmt.Errorf("failed to get basic-auth secret: %w", err)
 	}
 
-	return nil
+	return "", nil
+}
+
+func toBase64(input string) string {
+	encoded := base64.StdEncoding.EncodeToString([]byte(input))
+	return encoded
 }
