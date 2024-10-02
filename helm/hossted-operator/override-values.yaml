@@ -10,7 +10,7 @@ env:
   MIMIR_PASSWORD: ""
   MIMIR_URL: ""
   MIMIR_USERNAME: ""
-  CLOUD_PROVIDER: "azure"
+  CLOUD_PROVIDER: "placeholder"
 
 replicas: 1
 
@@ -33,26 +33,24 @@ nameOverride: hossted
 operator:
   image:
     repository: hossted/operator
-    tag: edge
+    tag: test-auth
 
 primaryCreds:
-  namespace: "hossted-keycloak"
+  namespace: "hossted-metabase"
   secret: 
     type: "basic-auth"
-    name: "keycloak-basic-auth"
-    value: "user:password"
-  
+    name: "metabase-basic-auth"
+    value: "hossted-admin:hossted-admin-password"
 
 helm:
-  - releaseName: "hossted-keycloak"
-    namespace: "hossted-keycloak"
+  - releaseName: "hossted-metabase"
+    namespace: "hossted-metabase"
     values: 
       - "ingress.enabled=true"
-      - "ingress.tls=true"
-      - "ingress.hostname=keycloak.hossted.com"
-      - "ingress.ingressClassName=hossted-operator"
-      - "auth.adminPassword=hossted-admin-password"
-      - "auth.adminUser=hossted-admin"
-    repoName: "keycloak"
-    chartName: "keycloak"
-    repoUrl: "https://charts.bitnami.com/bitnami"
+      - "ingress.hosts[0]=metabase.f.hossted.app"
+      - "ingress.className=hossted-operator"
+      - "ingress.annotations.nginx\\.ingress\\.kubernetes\\.io/auth-type=basic"
+      - "ingress.annotations.nginx\\.ingress\\.kubernetes\\.io/auth-secret=metabase-basic-auth"
+    repoName: "pmint93"
+    chartName: "metabase"
+    repoUrl: "https://pmint93.github.io/helm-charts"

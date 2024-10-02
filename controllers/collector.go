@@ -731,21 +731,6 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 		return AccessInfo{}, fmt.Errorf("failed to list Ingresses: %w", err)
 	}
 
-	ingressClassName := "hossted-operator"
-	for _, ingress := range ingressList.Items {
-		if ingress.Spec.IngressClassName != nil && *ingress.Spec.IngressClassName == ingressClassName {
-			if len(ingress.Spec.Rules) > 0 {
-				url := ingress.Spec.Rules[0].Host
-				urlInfo := URLInfo{
-					URL:      url,
-					User:     user,
-					Password: password,
-				}
-				access.URLs = append(access.URLs, urlInfo)
-			}
-		}
-	}
-
 	// Extract user and password from pmc.Secret.Value (format: "user:password")
 	var buser, bpassword string
 	if pmc.Secret.Name != "" && pmc.Secret.Value != "" {
@@ -763,13 +748,34 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 			if err != nil {
 				return AccessInfo{}, fmt.Errorf("failed to create basic-auth secret: %w", err)
 			}
-			urlInfo := URLInfo{
-				User:     buser,
-				Password: bpassword,
-			}
-			access.URLs = append(access.URLs, urlInfo)
 		}
 	}
+
+	ingressClassName := "hossted-operator"
+	for _, ingress := range ingressList.Items {
+		if ingress.Spec.IngressClassName != nil && *ingress.Spec.IngressClassName == ingressClassName {
+			if len(ingress.Spec.Rules) > 0 {
+				url := ingress.Spec.Rules[0].Host
+				var urlInfo URLInfo
+				if user != "" && password != "" {
+					urlInfo = URLInfo{
+						URL:      url,
+						User:     user,
+						Password: password,
+					}
+				} else {
+					urlInfo = URLInfo{
+						URL:      url,
+						User:     buser,
+						Password: bpassword,
+					}
+				}
+				access.URLs = append(access.URLs, urlInfo)
+			}
+		}
+	}
+
+	fmt.Println(access)
 
 	if len(access.URLs) == 0 {
 		log.Printf("no matching Ingress found with class %s\n", ingressClassName)
