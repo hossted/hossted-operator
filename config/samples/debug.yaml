@@ -1,0 +1,40 @@
+apiVersion: hossted.com/v1
+kind: Hosstedproject
+metadata:
+  generation: 1
+  labels:
+    app.kubernetes.io/component: hosstedproject-cr
+    app.kubernetes.io/instance: hossted-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: hossted
+    app.kubernetes.io/version: 0.6.1
+    helm.sh/chart: hossted-operator-0.6.1
+  name: hossted-operator-cr
+spec:
+  cve:
+    enable: false
+  denyNamespaces:
+  - hossted-platform
+  - kube-system
+  - local-path-storage
+  - kube-node-lease
+  - kube-public
+  helm:
+  - chartName: metabase
+    namespace: hossted-metabase
+    releaseName: hossted-metabase
+    repoName: pmint93
+    repoUrl: https://pmint93.github.io/helm-charts
+    values:
+    - ingress.enabled=true
+    - ingress.hosts[0]=metabase.f.hossted.app
+    - ingress.className=hossted-operator
+    - ingress.annotations.nginx\.ingress\.kubernetes\.io/auth-type=basic
+    - ingress.annotations.nginx\.ingress\.kubernetes\.io/auth-secret=metabase-basic-auth
+  ingress:
+    enable: false
+  logging:
+    enable: false
+  monitoring:
+    enable: false
+  stop: false

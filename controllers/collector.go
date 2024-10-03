@@ -3,15 +3,19 @@ package controllers
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
 	networkingv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	trivy "github.com/aquasecurity/trivy-operator/pkg/apis/aquasecurity/v1alpha1"
@@ -21,6 +25,7 @@ import (
 	"github.com/hossted/hossted-operator/pkg/http"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -133,21 +138,26 @@ type SecurityInfoContainer struct {
 }
 
 type PrimaryCreds struct {
-	Namespace string `json:"namespace"`
+	Namespace string `json:"namespace,omitempty"`
 	Password  struct {
 		Type       string `json:"type,omitempty"`
 		Text       string `json:"text,omitempty"`
 		Key        string `json:"key"`
 		SecretName string `json:"secretName,omitempty"`
 		ConfigMap  string `json:"configMap,omitempty"`
-	} `json:"password"`
+	} `json:"password,omitempty"`
 	User struct {
 		Type       string `json:"type,omitempty"`
 		Text       string `json:"text,omitempty"`
 		SecretName string `json:"secretName,omitempty"`
 		ConfigMap  string `json:"configMap,omitempty"`
 		Key        string `json:"key"`
-	} `json:"user"`
+	} `json:"user,omitempty"`
+	Secret struct {
+		Type  string `json:"type,omitempty"`
+		Name  string `json:"name,omitempty"`
+		Value string `json:"value,omitempty"`
+	} `json:"secret,omitempty"`
 }
 
 type DnsInfo struct {
@@ -268,7 +278,6 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 				return nil, nil, nil, err
 			}
 
-			fmt.Printf("%+v", accessInfo)
 			// After collecting all HelmInfo structs for this iteration, assign to instance.Status.HelmStatus
 			appInfo := AppInfo{
 				HelmInfo:        helmInfo,
@@ -303,13 +312,6 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 		sort.Ints(revisions)
 
 	}
-	// Convert map values to slice
-
-	// for _, helmInfo := range helmStatusMap {
-	// 	fmt.Println("Helm status map ", helmInfo)
-	// 	helmStatus = append(helmStatus, helmInfo)
-
-	// }
 
 	return collectors, revisions, helmStatus, nil
 }
@@ -730,23 +732,54 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 		return AccessInfo{}, fmt.Errorf("failed to list Ingresses: %w", err)
 	}
 
+	// Extract user and password from pmc.Secret.Value (format: "user:password")
+	var buser, bpassword string
+	if pmc.Secret.Name != "" && pmc.Secret.Value != "" {
+		creds := strings.SplitN(pmc.Secret.Value, ":", 2)
+		if len(creds) != 2 {
+			return AccessInfo{}, fmt.Errorf("invalid format for secret value, expected 'user:password'")
+		}
+		buser = creds[0]
+		bpassword = creds[1]
+	}
+
+	if pmc.Secret.Name != "" {
+		if pmc.Secret.Type == "basic-auth" {
+			_, err = createBasicAuthSecret(ctx, r, pmc.Namespace, pmc.Secret.Name, buser, bpassword)
+			if err != nil {
+				return AccessInfo{}, fmt.Errorf("failed to create basic-auth secret: %w", err)
+			}
+		}
+	}
+
 	ingressClassName := "hossted-operator"
 	for _, ingress := range ingressList.Items {
 		if ingress.Spec.IngressClassName != nil && *ingress.Spec.IngressClassName == ingressClassName {
 			if len(ingress.Spec.Rules) > 0 {
 				url := ingress.Spec.Rules[0].Host
-				urlInfo := URLInfo{
-					URL:      url,
-					User:     user,
-					Password: password,
+				var urlInfo URLInfo
+				if user != "" && password != "" {
+					urlInfo = URLInfo{
+						URL:      url,
+						User:     toBase64(user),
+						Password: toBase64(password),
+					}
+				} else {
+					urlInfo = URLInfo{
+						URL:      url,
+						User:     toBase64(buser),
+						Password: toBase64(bpassword),
+					}
 				}
 				access.URLs = append(access.URLs, urlInfo)
 			}
 		}
 	}
 
+	log.Printf("access info object %v", access)
+
 	if len(access.URLs) == 0 {
-		fmt.Printf("no matching Ingress found with class %s\n", ingressClassName)
+		log.Printf("no matching Ingress found with class %s\n", ingressClassName)
 		return AccessInfo{}, nil
 	}
 
@@ -781,7 +814,7 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 	}
 
 	if releaseNamespace != pmc.Namespace {
-		fmt.Println("Release Namespace ", releaseNamespace, "not a marketplace app, ignoring")
+		log.Println("Release Namespace ", releaseNamespace, "not a marketplace app, ignoring")
 		return nil
 	}
 
@@ -804,7 +837,7 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 		dnsName = appUUID + "." + "f.hossted.app"
 		if ing != (&networkingv1.Ingress{}) {
 			if ing.Status.LoadBalancer.Ingress == nil {
-				fmt.Println("Ingress Status has no LB address, retrying in 30 seconds...")
+				log.Print("Ingress Status has no LB address, retrying in 30 seconds...")
 				time.Sleep(retryInterval)
 				retryCount++
 				continue
@@ -839,8 +872,9 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 	if err != nil {
 		return err
 	}
-	fmt.Println(string(dnsByte))
-	fmt.Println(string(resp.ResponseBody))
+
+	log.Println(string(dnsByte))
+	log.Println(string(resp.ResponseBody))
 
 	//if resp.StatusCode == 200 {
 	ing.Spec.Rules[0].Host = toLowerCase(dnsName)
@@ -853,7 +887,7 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 			ChartName:   h.ChartName,
 			RepoUrl:     h.RepoUrl,
 		}
-		fmt.Println("Performing upgrade for ", h.ReleaseName, " with hostname ", toLowerCase(dnsName))
+		log.Println("Performing upgrade for ", h.ReleaseName, " with hostname ", toLowerCase(dnsName))
 		err := helm.Upgrade(newHelm)
 		if err != nil {
 			return err
@@ -882,10 +916,13 @@ func tweakIngressHostname(existingStrings []string, dnsName string) []string {
 
 	// Iterate through the existing strings
 	for _, str := range existingStrings {
-		// Check if the string contains "ingress.hostname="
+		// Check if the string contains "ingress.hostname=" or "ingress.hosts[0]="
 		if strings.Contains(str, "ingress.hostname=") {
 			// Modify the string by appending the lowercase DNS name
 			str = "ingress.hostname=" + lowercaseDNSName
+		} else if strings.Contains(str, "ingress.hosts[0]=") {
+			// Modify the string by appending the lowercase DNS name
+			str = "ingress.hosts[0]=" + lowercaseDNSName
 		}
 		// Keep the existing string (either modified or original) in the updated list
 		updatedStrings = append(updatedStrings, str)
@@ -894,6 +931,7 @@ func tweakIngressHostname(existingStrings []string, dnsName string) []string {
 	// Return the updated list of strings
 	return updatedStrings
 }
+
 func searchForTextInFile(fileContent, searchText string) (string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(fileContent))
 	for scanner.Scan() {
@@ -909,4 +947,53 @@ func searchForTextInFile(fileContent, searchText string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("text '%s' not found in the file", searchText)
+}
+
+// Helper function to create a Kubernetes Secret for basic authentication
+func createBasicAuthSecret(ctx context.Context, r *HosstedProjectReconciler, namespace, secretName, user, password string) (string, error) {
+	// Generate bcrypt hash of the password (similar to htpasswd)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	// Base64 encode the "username:hashedPassword" as expected for basic auth
+	auth := []byte(fmt.Sprintf("%s:%s", user, string(hashedPassword)))
+
+	// Create the Secret object
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: namespace,
+		},
+		Type: v1.SecretTypeOpaque,
+		Data: map[string][]byte{
+			"auth": auth,
+		},
+	}
+
+	// Check if the secret already exists
+	existingSecret := &v1.Secret{}
+	err = r.Client.Get(ctx, types.NamespacedName{
+		Namespace: namespace,
+		Name:      secretName,
+	}, existingSecret)
+	if err != nil && errors.IsNotFound(err) {
+		// Secret does not exist, create it
+		err = r.Client.Create(ctx, secret)
+		if err != nil {
+			return "", fmt.Errorf("failed to create basic-auth secret: %w", err)
+		}
+		log.Printf("Secret %s created successfully in namespace %s\n", secretName, namespace)
+	} else if err != nil {
+		// Other errors
+		return "", fmt.Errorf("failed to get basic-auth secret: %w", err)
+	}
+
+	return "", nil
+}
+
+func toBase64(input string) string {
+	encoded := base64.StdEncoding.EncodeToString([]byte(input))
+	return encoded
 }
