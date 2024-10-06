@@ -11,6 +11,10 @@ env:
   MIMIR_URL: ""
   MIMIR_USERNAME: ""
   CLOUD_PROVIDER: "placeholder"
+  PRODUCT_CODE: ""
+  AWS_REGION: ""
+  MARKET_PLACE: ""
+
 
 replicas: 1
 

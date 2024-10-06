@@ -17,8 +17,10 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -34,6 +36,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/marketplacemetering"
+	"github.com/aws/aws-sdk-go-v2/service/marketplacemetering/types"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/google/uuid"
 	hosstedcomv1 "github.com/hossted/hossted-operator/api/v1"
 	"github.com/hossted/hossted-operator/controllers"
 	//+kubebuilder:scaffold:imports
@@ -51,6 +58,15 @@ func init() {
 
 	utilruntime.Must(hosstedcomv1.TrivyAddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
+	if os.Getenv("CLOUD_PROVIDER") == "AWS" && os.Getenv("MARKET_PLACE") == "enabled" {
+		// make sure hossted operator sa has access
+		// eksctl create iamserviceaccount --name hossted-operator-controller-manager \
+		// --cluster ${CLUSTER_NAME} \
+		// --attach-policy-arn ${POLICY_NAME} \
+		// --approve \
+		// --override-existing-serviceaccounts
+		initRegisterUsage()
+	}
 }
 
 func main() {
@@ -138,4 +154,56 @@ func lookupReconcileDuration() time.Duration {
 		}
 		return v
 	}
+}
+
+func initRegisterUsage() {
+	// Load the AWS SDK configuration
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		log.Fatalf("Unable to load SDK config: %v", err)
+	}
+
+	// Create the AWS Marketplace Metering client
+	meteringClient := marketplacemetering.NewFromConfig(cfg)
+
+	// Generate a unique nonce for the call
+	nonce := uuid.New().String()
+
+	// Call the RegisterUsage API
+	result, err := callRegisterUsage(meteringClient, os.Getenv("PRODUCT_CODE"), nonce, 1)
+	if err != nil {
+		log.Fatalf("Error calling RegisterUsage: %v", err)
+	}
+
+	// Process the result
+	log.Printf("RegisterUsage successful. Entitlement check result: %v", result)
+}
+
+func callRegisterUsage(client *marketplacemetering.Client, productCode, nonce string, publicKeyVersion int32) (*marketplacemetering.RegisterUsageOutput, error) {
+	// Create the request input
+	input := &marketplacemetering.RegisterUsageInput{
+		ProductCode:      aws.String(productCode),
+		Nonce:            aws.String(nonce),
+		PublicKeyVersion: aws.Int32(publicKeyVersion),
+	}
+
+	// Call the RegisterUsage API
+	result, err := client.RegisterUsage(context.TODO(), input)
+	if err != nil {
+		switch err.(type) {
+		case *types.CustomerNotEntitledException:
+			log.Fatalf("Customer is not entitled to use the product: %v", err)
+		case *types.InvalidProductCodeException:
+			log.Fatalf("The product code is invalid: %v", err)
+		case *types.InvalidRegionException:
+			log.Fatalf("RegisterUsage must be called from the same region where the container is running: %v", err)
+		case *types.ThrottlingException:
+			log.Printf("Throttling detected. Please retry the request later: %v", err)
+		default:
+			log.Fatalf("Error calling RegisterUsage: %v", err)
+		}
+	}
+
+	// Return the result from AWS Marketplace
+	return result, nil
 }
