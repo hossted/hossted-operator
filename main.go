@@ -62,7 +62,7 @@ func init() {
 		// make sure hossted operator sa has access
 		// eksctl create iamserviceaccount --name hossted-operator-controller-manager \
 		// --cluster ${CLUSTER_NAME} \
-		// --attach-policy-arn ${POLICY_NAME} \
+		// --attach-policy-arn arn:aws:iam::aws:policy/AWSMarketplaceMeteringFullAccess \
 		// --approve \
 		// --override-existing-serviceaccounts
 		initRegisterUsage()

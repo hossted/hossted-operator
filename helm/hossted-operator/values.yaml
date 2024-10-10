@@ -9,6 +9,10 @@ env:
   MIMIR_PASSWORD: ""
   MIMIR_URL: ""
   MIMIR_USERNAME: ""
+  CLOUD_PROVIDER: ""
+  PRODUCT_CODE: ""
+  AWS_REGION: ""
+  MARKET_PLACE: ""
 
 replicas: 1
 
@@ -31,8 +35,8 @@ nameOverride: hossted
 
 operator:
   image:
-    repository: hossted/operator
-    tag: edge
+    repository: datainfrahq/hop
+    tag: v1
 
 helm:
   - releaseName: "kube-state-metrics"
