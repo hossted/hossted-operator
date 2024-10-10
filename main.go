@@ -61,8 +61,10 @@ func init() {
 	if os.Getenv("CLOUD_PROVIDER") == "AWS" && os.Getenv("MARKET_PLACE") == "enabled" {
 		// make sure hossted operator sa has access
 		// eksctl create iamserviceaccount --name hossted-operator-controller-manager \
-		// --cluster ${CLUSTER_NAME} \
+		// --cluster dev-test-serge \
+		// --namespace hossted-platform \
 		// --attach-policy-arn arn:aws:iam::aws:policy/AWSMarketplaceMeteringFullAccess \
+		// --attach-policy-arn arn:aws:iam::aws:policy/AWSMarketplaceMeteringRegisterUsage \
 		// --approve \
 		// --override-existing-serviceaccounts
 		initRegisterUsage()
@@ -176,7 +178,7 @@ func initRegisterUsage() {
 	}
 
 	// Process the result
-	log.Printf("RegisterUsage successful. Entitlement check result: %v", result)
+	log.Printf("RegisterUsage successful. Entitlement check result: %v", *result)
 }
 
 func callRegisterUsage(client *marketplacemetering.Client, productCode, nonce string, publicKeyVersion int32) (*marketplacemetering.RegisterUsageOutput, error) {
