@@ -18,7 +18,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -175,40 +174,14 @@ func initRegisterUsage() {
 	// Call the RegisterUsage API
 	result, err := callRegisterUsage(meteringClient, os.Getenv("PRODUCT_CODE"), nonce, 1)
 	if err != nil {
-		log.Fatalf("Error calling RegisterUsage: %v", err)
+		log.Fatalf("Error calling RegisterUsage: %+v", err)
 	}
 
 	// Process the result
-	log.Printf("RegisterUsage successful. Entitlement check result: %v", *result)
+	log.Printf("RegisterUsage successful. Entitlement check result: %+v", *result)
 
 	if result != nil {
-		// Log PublicKeyRotationTimestamp
-		if result.PublicKeyRotationTimestamp != nil {
-			log.Printf("PublicKeyRotationTimestamp: %v", *result.PublicKeyRotationTimestamp)
-		} else {
-			log.Println("PublicKeyRotationTimestamp: <nil>")
-		}
-
-		// Log Signature in a truncated format for better readability
-		if result.Signature != nil {
-			// Truncate the signature for readability, just print the first and last 10 characters
-			log.Printf("Signature: %s...%s", (*result.Signature)[:10], (*result.Signature)[len(*result.Signature)-10:])
-		} else {
-			log.Println("Signature: <nil>")
-		}
-
-		// Log ResultMetadata in a more readable JSON-like format
-
-		// Convert the ResultMetadata to a JSON string for better readability
-		resultMetadataJson, err := json.MarshalIndent(result.ResultMetadata, "", "  ")
-		if err != nil {
-			log.Printf("Error formatting ResultMetadata: %v", err)
-		} else {
-			log.Printf("ResultMetadata: %s", resultMetadataJson)
-		}
-
-	} else {
-		log.Println("Result: <nil>")
+		log.Printf("ResultMetadata: %+v\n", result.ResultMetadata)
 	}
 }
 
