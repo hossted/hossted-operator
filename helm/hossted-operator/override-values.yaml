@@ -10,7 +10,11 @@ env:
   MIMIR_PASSWORD: ""
   MIMIR_URL: ""
   MIMIR_USERNAME: ""
-  CLOUD_PROVIDER: "placeholder"
+  CLOUD_PROVIDER: "AWS"
+  PRODUCT_CODE: "74gb9tww83ugd3vt68fx24lgv"
+  AWS_REGION: "us-east-1"
+  MARKET_PLACE: "enabled"
+
 
 replicas: 1
 
@@ -33,7 +37,7 @@ nameOverride: hossted
 operator:
   image:
     repository: hossted/operator
-    tag: test-auth
+    tag: 0.6.3
 
 primaryCreds:
   namespace: "hossted-metabase"

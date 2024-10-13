@@ -9,6 +9,10 @@ env:
   MIMIR_PASSWORD: ""
   MIMIR_URL: ""
   MIMIR_USERNAME: ""
+  CLOUD_PROVIDER: ""
+  PRODUCT_CODE: ""
+  AWS_REGION: ""
+  MARKET_PLACE: ""
 
 replicas: 1
 
@@ -32,7 +36,7 @@ nameOverride: hossted
 operator:
   image:
     repository: hossted/operator
-    tag: edge
+    tag: 0.6.3
 
 helm:
   - releaseName: "kube-state-metrics"
@@ -44,4 +48,3 @@ helm:
     repoUrl: "https://prometheus-community.github.io/helm-charts"
 
 primaryCreds: {}
-
