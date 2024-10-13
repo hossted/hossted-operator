@@ -35,8 +35,8 @@ nameOverride: hossted
 
 operator:
   image:
-    repository: datainfrahq/hop
-    tag: v1
+    repository: hossted/operator
+    tag: 0.6.3
 
 helm:
   - releaseName: "kube-state-metrics"
@@ -48,4 +48,3 @@ helm:
     repoUrl: "https://prometheus-community.github.io/helm-charts"
 
 primaryCreds: {}
-

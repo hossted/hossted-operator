@@ -36,8 +36,8 @@ nameOverride: hossted
 
 operator:
   image:
-    repository: datainfrahq/hop
-    tag: v1
+    repository: hossted/operator
+    tag: 0.6.3
 
 primaryCreds:
   namespace: "hossted-metabase"
