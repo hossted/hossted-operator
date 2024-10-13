@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -188,15 +189,24 @@ func initRegisterUsage() {
 			log.Println("PublicKeyRotationTimestamp: <nil>")
 		}
 
-		// Log Signature
+		// Log Signature in a truncated format for better readability
 		if result.Signature != nil {
-			log.Printf("Signature: %s", *result.Signature)
+			// Truncate the signature for readability, just print the first and last 10 characters
+			log.Printf("Signature: %s...%s", (*result.Signature)[:10], (*result.Signature)[len(*result.Signature)-10:])
 		} else {
 			log.Println("Signature: <nil>")
 		}
 
-		// Log ResultMetadata
-		log.Printf("ResultMetadata: %v", result.ResultMetadata)
+		// Log ResultMetadata in a more readable JSON-like format
+
+		// Convert the ResultMetadata to a JSON string for better readability
+		resultMetadataJson, err := json.MarshalIndent(result.ResultMetadata, "", "  ")
+		if err != nil {
+			log.Printf("Error formatting ResultMetadata: %v", err)
+		} else {
+			log.Printf("ResultMetadata: %s", resultMetadataJson)
+		}
+
 	} else {
 		log.Println("Result: <nil>")
 	}
