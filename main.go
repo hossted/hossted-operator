@@ -179,6 +179,27 @@ func initRegisterUsage() {
 
 	// Process the result
 	log.Printf("RegisterUsage successful. Entitlement check result: %v", *result)
+
+	if result != nil {
+		// Log PublicKeyRotationTimestamp
+		if result.PublicKeyRotationTimestamp != nil {
+			log.Printf("PublicKeyRotationTimestamp: %v", *result.PublicKeyRotationTimestamp)
+		} else {
+			log.Println("PublicKeyRotationTimestamp: <nil>")
+		}
+
+		// Log Signature
+		if result.Signature != nil {
+			log.Printf("Signature: %s", *result.Signature)
+		} else {
+			log.Println("Signature: <nil>")
+		}
+
+		// Log ResultMetadata
+		log.Printf("ResultMetadata: %v", result.ResultMetadata)
+	} else {
+		log.Println("Result: <nil>")
+	}
 }
 
 func callRegisterUsage(client *marketplacemetering.Client, productCode, nonce string, publicKeyVersion int32) (*marketplacemetering.RegisterUsageOutput, error) {
