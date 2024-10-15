@@ -31,7 +31,7 @@ ingress:
   enable: true
 
 serviceAccount:
-  create: true          # Set to true if you want to create a new ServiceAccount
+  create: false          # Set to true if you want to create a new ServiceAccount
   name: "my-service-account"   # Specify the name of an existing ServiceAccount
 
 nameOverride: hossted

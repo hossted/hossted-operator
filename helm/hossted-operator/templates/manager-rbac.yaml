@@ -349,5 +349,5 @@ roleRef:
   name: cluster-admin
 subjects:
 - kind: ServiceAccount
-  name: '{{ include "hossted-operator.fullname" . }}-controller-manager'
+  name: {{ if .Values.serviceAccount.create }}{{ include "hossted-operator.fullname" . }}-controller-manager{{ else }}{{ .Values.serviceAccount.name }}{{ end }}
   namespace: '{{ .Release.Namespace }}'
