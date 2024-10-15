@@ -93,5 +93,5 @@ spec:
         resources: {{- toYaml .Values.operator.resources | nindent 10 }}
       securityContext:
         runAsNonRoot: true
-      serviceAccountName: {{ include "hossted-operator.fullname" . }}-controller-manager
+      serviceAccountName: {{ if .Values.serviceAccount.create }}{{ include "hossted-operator.fullname" . }}-controller-manager{{ else }}{{ .Values.serviceAccount.name }}{{ end }}
       terminationGracePeriodSeconds: 300
