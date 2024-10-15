@@ -15,6 +15,10 @@ env:
   AWS_REGION: "us-east-1"
   MARKET_PLACE: "enabled"
 
+serviceAccount:
+  create: false          # Set to true if you want to create a new ServiceAccount
+  name: "my-service-account"   # Specify the name of an existing ServiceAccount
+
 
 replicas: 1
 
