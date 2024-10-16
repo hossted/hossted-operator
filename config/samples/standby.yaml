@@ -13,8 +13,8 @@ spec:
   - kube-public
   helm:
   - chartName: keycloak
-    namespace: hossted-keycloak
-    releaseName: hossted-keycloak
+    namespace: hossted-keycloaks
+    releaseName: hossted-keycloaks
     repoName: keycloak
     repoUrl: https://charts.bitnami.com/bitnami
     values:
@@ -30,4 +30,4 @@ spec:
     enable: false
   monitoring:
     enable: false
-  stop: false
+  stop: true

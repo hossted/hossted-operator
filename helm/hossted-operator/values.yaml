@@ -2,6 +2,7 @@ env:
   HOSSTED_API_URL: "https://api.hossted.com/v1/instances"
   RECONCILE_DURATION: "10s"
   HOSSTED_ORG_ID: "123-123-123-123"
+  HOSSTED_TOKEN: ""
   CONTEXT_NAME: ""
   LOKI_PASSWORD: ""
   LOKI_URL: ""
