@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"sort"
 
@@ -106,7 +107,10 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				if err != nil {
 					return ctrl.Result{}, err
 				}
-				fmt.Println(ok, newHelm)
+				err = sendEvent("info", init_marketplace_app_installation, os.Getenv("HOSSTED_ORG_ID"), instance.Status.ClusterUUID)
+				if err != nil {
+					log.Print(err)
+				}
 				if !ok {
 					err := helm.Apply(newHelm)
 					if err != nil {
@@ -169,8 +173,14 @@ func (r *HosstedProjectReconciler) handleReconciliation(ctx context.Context, ins
 func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instance *hosstedcomv1.Hosstedproject, logger logr.Logger) error {
 
 	logger.Info("Registering Cluster")
+
 	if err := r.registerClusterUUID(instance, instance.Status.ClusterUUID, logger); err != nil {
 		return err
+	}
+
+	err := sendEvent("info", init_cluster_registeration, os.Getenv("HOSSTED_ORG_ID"), instance.Status.ClusterUUID)
+	if err != nil {
+		log.Print(err)
 	}
 
 	collector, currentRevision, helmStatus, err := r.collector(ctx, instance)
@@ -191,6 +201,11 @@ func (r *HosstedProjectReconciler) handleNewCluster(ctx context.Context, instanc
 	}
 
 	logger.Info("Registering Apps")
+
+	err = sendEvent("info", init_cluster_registeration, os.Getenv("HOSSTED_ORG_ID"), instance.Status.ClusterUUID)
+	if err != nil {
+		log.Print(err)
+	}
 
 	if err := r.registerApps(instance, collector, logger); err != nil {
 		return err
@@ -432,6 +447,11 @@ func (r *HosstedProjectReconciler) handleIngress(instance *hosstedcomv1.Hosstedp
 
 		if !ok {
 			// install ingress controller
+			err = sendEvent("info", init_ingress_installation, os.Getenv("HOSSTED_ORG_ID"), instance.Status.ClusterUUID)
+			if err != nil {
+				log.Print(err)
+			}
+
 			err = helm.Apply(ing)
 			if err != nil {
 				fmt.Println("ingress controller installation failed %w", err)

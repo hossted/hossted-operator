@@ -1,8 +1,33 @@
 package controllers
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
 	"sort"
 	"time"
+)
+
+const (
+	init_cluster_registeration        = "_HSTD_OPERATOR_CLUSTER_REGISTERATION"
+	init_app_registeration            = "_HSTD_OPERATOR_APP_REGISTERATION"
+	init_ingress_installation         = "_HSTD_OPERATOR_INGRESS_INSTALLATION"
+	init_marketplace_app_installation = "_HSTD_OPERATOR_MARKETPLACE_APP_INSTALLATION"
+	init_dns_registeration            = "_HSTD_OPERATOR_DNS_REGISTERATION"
+	init_pod_info_collection          = "_HSTD_OPERATOR_POD_INFO_COLLECTION"
+	init_service_info_collection      = "_HSTD_OPERATOR_SERVICE_INFO_COLLECTION"
+	init_volume_info_collection       = "_HSTD_OPERATOR_VOLUME_INFO_COLLECTION"
+	init_ingress_info_collection      = "_HSTD_OPERATOR_INGRESS_INFO_COLLECTION"
+	init_security_info_collection     = "_HSTD_OPERATOR_SECURITY_INFO_COLLECTION"
+	init_configmap_info_collection    = "_HSTD_OPERATOR_CONFIGMAP_INFO_COLLECTION"
+	init_helmvalue_info_collection    = "_HSTD_OPERATOR_HELMVALUE_INFO_COLLECTION"
+	init_deployment_info_collection   = "_HSTD_OPERATOR_DEPLOYMENT_INFO_COLLECTION"
+	init_statefulset_info_collection  = "_HSTD_OPERATOR_STATEFULSET_INFO_COLLECTION"
+	init_secret_info_collection       = "_HSTD_OPERATOR_SECRET_INFO_COLLECTION"
 )
 
 // filter removes namespaces from the list that match the denied namespaces.
@@ -57,4 +82,61 @@ func compareSlices(slice1, slice2 []int) bool {
 
 	// If all elements are equal, return true
 	return true
+}
+
+func sendEvent(eventType, message, orgID, clusterUUID string) error {
+	url := os.Getenv("HOSSTED_API_URL") + "/statuses"
+
+	type event struct {
+		WareType string `json:"ware_type"`
+		Type     string `json:"type"`
+		UUID     string `json:"uuid,omitempty"`
+		OrgID    string `json:"org_id"`
+		Message  string `json:"message"`
+	}
+
+	newEvent := event{
+		WareType: "k8s",
+		Type:     eventType,
+		UUID:     clusterUUID,
+		OrgID:    orgID,
+		Message:  message,
+	}
+
+	eventByte, err := json.Marshal(newEvent)
+	if err != nil {
+		return err
+	}
+	// Create HTTP request
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(eventByte)))
+	if err != nil {
+		return err
+	}
+
+	// Set headers
+	req.Header.Set("Content-Type", "application/json")
+
+	// Add Authorization header with Basic authentication
+	req.Header.Set("Authorization", fmt.Sprintf("Basic %s", []byte(os.Getenv("HOSSTED_TOKEN"))))
+	// Perform the request
+	client := http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("Error sending event, errcode: %d, resp %s", resp.StatusCode, string(body))
+	}
+
+	log.Printf("Event sent successfully: %s, response: %s\n", message, string(body))
+
+	return nil
 }

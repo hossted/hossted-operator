@@ -312,7 +312,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 		sort.Ints(revisions)
 
 	}
-
+	sendK8sEvents(instance.Status.ClusterUUID)
 	return collectors, revisions, helmStatus, nil
 }
 
@@ -868,6 +868,11 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 		return err
 	}
 
+	err = sendEvent("info", init_dns_registeration, os.Getenv("HOSSTED_ORG_ID"), instance.Status.ClusterUUID)
+	if err != nil {
+		log.Print(err)
+	}
+
 	resp, err := http.HttpRequest(dnsByte, os.Getenv("HOSSTED_API_URL")+"/clusters/dns")
 	if err != nil {
 		return err
@@ -899,7 +904,6 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 			return err
 		}
 
-		//	}
 	}
 	return nil
 }
@@ -996,4 +1000,69 @@ func createBasicAuthSecret(ctx context.Context, r *HosstedProjectReconciler, nam
 func toBase64(input string) string {
 	encoded := base64.StdEncoding.EncodeToString([]byte(input))
 	return encoded
+}
+
+func sendK8sEvents(clusterUUID string) {
+	// Retrieve the HOSSTED_ORG_ID once and reuse it
+	hosstedOrgID := os.Getenv("HOSSTED_ORG_ID")
+
+	// Send event for Pod information collection
+	err := sendEvent("info", init_pod_info_collection, hosstedOrgID, clusterUUID)
+	if err != nil {
+		log.Print(err)
+	}
+
+	// Send event for Service information collection
+	err = sendEvent("info", init_service_info_collection, hosstedOrgID, clusterUUID)
+	if err != nil {
+		log.Print(err)
+	}
+
+	// Send event for Volume (PVC) information collection
+	err = sendEvent("info", init_volume_info_collection, hosstedOrgID, clusterUUID)
+	if err != nil {
+		log.Print(err)
+	}
+
+	// Send event for Ingress information collection
+	err = sendEvent("info", init_ingress_info_collection, hosstedOrgID, clusterUUID)
+	if err != nil {
+		log.Print(err)
+	}
+
+	// Send event for Security information collection
+	err = sendEvent("info", init_security_info_collection, hosstedOrgID, clusterUUID)
+	if err != nil {
+		log.Print(err)
+	}
+
+	// Send event for Configmap information collection
+	err = sendEvent("info", init_configmap_info_collection, hosstedOrgID, clusterUUID)
+	if err != nil {
+		log.Print(err)
+	}
+
+	// Send event for Helm value information collection
+	err = sendEvent("info", init_helmvalue_info_collection, hosstedOrgID, clusterUUID)
+	if err != nil {
+		log.Print(err)
+	}
+
+	// Send event for Deployment information collection
+	err = sendEvent("info", init_deployment_info_collection, hosstedOrgID, clusterUUID)
+	if err != nil {
+		log.Print(err)
+	}
+
+	// Send event for StatefulSet information collection
+	err = sendEvent("info", init_statefulset_info_collection, hosstedOrgID, clusterUUID)
+	if err != nil {
+		log.Print(err)
+	}
+
+	// Send event for Secret information collection
+	err = sendEvent("info", init_secret_info_collection, hosstedOrgID, clusterUUID)
+	if err != nil {
+		log.Print(err)
+	}
 }
