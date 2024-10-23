@@ -17,7 +17,7 @@ const (
 	init_app_registeration            = "_HSTD_OPERATOR_APP_REGISTERATION"
 	init_ingress_installation         = "_HSTD_OPERATOR_INGRESS_INSTALLATION"
 	init_marketplace_app_installation = "_HSTD_OPERATOR_MARKETPLACE_APP_INSTALLATION"
-	init_dns_registeration            = "_HSTD_OPERATOR_DNS_REGISTERATION"
+	init_dns_registeration            = "_HSTD_OPERATOR_DNS_REGISTRATION"
 	init_pod_info_collection          = "_HSTD_OPERATOR_POD_INFO_COLLECTION"
 	init_service_info_collection      = "_HSTD_OPERATOR_SERVICE_INFO_COLLECTION"
 	init_volume_info_collection       = "_HSTD_OPERATOR_VOLUME_INFO_COLLECTION"
@@ -28,6 +28,7 @@ const (
 	init_deployment_info_collection   = "_HSTD_OPERATOR_DEPLOYMENT_INFO_COLLECTION"
 	init_statefulset_info_collection  = "_HSTD_OPERATOR_STATEFULSET_INFO_COLLECTION"
 	init_secret_info_collection       = "_HSTD_OPERATOR_SECRET_INFO_COLLECTION"
+	activation_complete               = "_HSTD_ACTIVATION_COMPLETE"
 )
 
 // filter removes namespaces from the list that match the denied namespaces.

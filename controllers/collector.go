@@ -1065,4 +1065,10 @@ func sendK8sEvents(clusterUUID string) {
 	if err != nil {
 		log.Print(err)
 	}
+
+	// Send event for hossted activation complete
+	err = sendEvent("info", activation_complete, hosstedOrgID, clusterUUID)
+	if err != nil {
+		log.Print(err)
+	}
 }
