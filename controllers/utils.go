@@ -92,6 +92,7 @@ func sendEvent(eventType, message, orgID, clusterUUID string) error {
 		Type     string `json:"type"`
 		UUID     string `json:"uuid,omitempty"`
 		OrgID    string `json:"org_id"`
+		UserID   string `json:"user_id,omitempty"`
 		Message  string `json:"message"`
 	}
 
@@ -100,6 +101,7 @@ func sendEvent(eventType, message, orgID, clusterUUID string) error {
 		Type:     eventType,
 		UUID:     clusterUUID,
 		OrgID:    orgID,
+		UserID:   os.Getenv("HOSSTED_USER_ID"),
 		Message:  message,
 	}
 
