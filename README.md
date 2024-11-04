@@ -22,8 +22,6 @@
 
 #### Installation
 
-##### Trivy operator 
-- Add trivy helm repo
 
 ##### Hossted operator 
 
