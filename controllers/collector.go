@@ -165,7 +165,7 @@ type DnsInfo struct {
 	Content   string `json:"content"`
 	Type      string `json:"type"`
 	ClusterId string `json:"clusterid"`
-	UserUUID  string `json:"user_uuid"`
+	UserUUID  string `json:"user_id"`
 	Env       string `json:"env"`
 }
 
