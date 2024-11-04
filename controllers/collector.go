@@ -165,6 +165,7 @@ type DnsInfo struct {
 	Content   string `json:"content"`
 	Type      string `json:"type"`
 	ClusterId string `json:"clusterid"`
+	UserUUID  string `json:"user_uuid"`
 	Env       string `json:"env"`
 }
 
@@ -853,6 +854,7 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 
 			dnsinfo.Name = toLowerCase(dnsName)
 			dnsinfo.ClusterId = instance.Status.ClusterUUID
+			dnsinfo.UserUUID = os.Getenv("HOSSTED_USER_ID")
 			dnsinfo.Env = "dev"
 
 			break // Exit loop if LB is available
