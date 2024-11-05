@@ -963,6 +963,8 @@ func tweakIngressHostname(existingStrings []string, dnsName string) []string {
 		} else if strings.Contains(str, "ingress.hosts[0]=") {
 			// Modify the string by appending the lowercase DNS name
 			str = "ingress.hosts[0]=" + lowercaseDNSName
+		} else if strings.Contains(str, "ingress.hosts[0].host=") {
+			str = "ingress.hosts[0].host=" + lowercaseDNSName
 		}
 		// Keep the existing string (either modified or original) in the updated list
 		updatedStrings = append(updatedStrings, str)
