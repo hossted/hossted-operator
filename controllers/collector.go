@@ -787,9 +787,36 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 	return access, nil
 }
 
-// getIngDns retrieves ingress and returns DnsInfo
-func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hosstedcomv1.Hosstedproject, releaseNamespace, appUUID string) error {
+// getCustomIngressName checks if 'custom-values-holder' ConfigMap has a custom ingress name
+func (r *HosstedProjectReconciler) getCustomIngressName(ctx context.Context, namespace string) (string, error) {
+	cm := v1.ConfigMap{}
+	err := r.Client.Get(ctx, types.NamespacedName{
+		Namespace: namespace,
+		Name:      "custom-values-holder",
+	}, &cm)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return "", nil // ConfigMap not found, no custom ingress name
+		}
+		return "", err
+	}
 
+	// Check for "hosstedCustomIngressName" in custom-values.json
+	if jsonString, ok := cm.Data["custom-values.json"]; ok {
+		var data map[string][]string
+		err = json.Unmarshal([]byte(jsonString), &data)
+		if err != nil {
+			return "", fmt.Errorf("failed to unmarshal custom-values.json: %w", err)
+		}
+		if len(data["hosstedCustomIngressName"]) > 0 {
+			return data["hosstedCustomIngressName"][0], nil // Return the first ingress name if available
+		}
+	}
+	return "", nil // No custom ingress name found
+}
+
+// getDns retrieves ingress and returns DnsInfo
+func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hosstedcomv1.Hosstedproject, releaseNamespace, appUUID string) error {
 	cm := v1.ConfigMap{}
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Namespace: "hossted-platform",
@@ -803,9 +830,7 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 	}
 
 	var pmc PrimaryCreds
-	// Extract the JSON string from the ConfigMap's data
 	if jsonString, ok := cm.Data["access-object.json"]; ok {
-		// Unmarshal the JSON string into the PrimaryCreds struct
 		err = json.Unmarshal([]byte(jsonString), &pmc)
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal access-object.json: %w", err)
@@ -826,10 +851,22 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 	maxRetries := 5
 	retryInterval := 10 * time.Second
 
+	// Retrieve custom ingress name from 'custom-values-holder' ConfigMap, if it exists
+	customIngressName, err := r.getCustomIngressName(ctx, pmc.Namespace)
+	if err != nil {
+		return err
+	}
+
+	// Use custom ingress name if available, otherwise fall back to pmc.Namespace
+	ingressName := pmc.Namespace
+	if customIngressName != "" {
+		ingressName = customIngressName
+	}
+
 	for retryCount < maxRetries {
 		err := r.Client.Get(ctx, types.NamespacedName{
 			Namespace: pmc.Namespace,
-			Name:      pmc.Namespace,
+			Name:      ingressName,
 		}, ing)
 		if err != nil {
 			return err
@@ -883,7 +920,6 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 	log.Println(string(dnsByte))
 	log.Println(string(resp.ResponseBody))
 
-	//if resp.StatusCode == 200 {
 	ing.Spec.Rules[0].Host = toLowerCase(dnsName)
 	for _, h := range instance.Spec.Helm {
 		newHelm := helm.Helm{
@@ -901,11 +937,9 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 		}
 
 		instance.Status.DnsUpdated = true
-		// Update status
 		if err := r.Status().Update(ctx, instance); err != nil {
 			return err
 		}
-
 	}
 	return nil
 }
