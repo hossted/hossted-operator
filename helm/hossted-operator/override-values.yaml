@@ -49,7 +49,8 @@ primaryCreds:
     value: "hossted-admin:hossted-admin-password"
 
 customValuesHolder: {}
-
+  # hosstedCustomIngressName:
+  #   - hossted-argocd-server
 helm:
   - releaseName: "hossted-wiki"
     namespace: "hossted-wiki"
