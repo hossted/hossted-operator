@@ -454,27 +454,29 @@ func (r *HosstedProjectReconciler) getDeployments(ctx context.Context, namespace
 	var deploymentHolder []DeploymentInfo
 
 	for _, deploy := range deployments.Items {
+		// Use a flag to only append one DeploymentInfo per deployment
+		deploymentAdded := false
+		deploymentInfo := DeploymentInfo{
+			Name:      deploy.Name,
+			Namespace: deploy.Namespace,
+		}
+
 		for _, container := range deploy.Spec.Template.Spec.Containers {
 			for _, env := range container.Env {
-				if env.ValueFrom == nil || env.ValueFrom.SecretKeyRef == nil {
-					deploymentInfo := DeploymentInfo{
-						Name:      deploy.Name,
-						Namespace: deploy.Namespace,
-						//SecretRef: env.ValueFrom.SecretKeyRef,
-					}
-					deploymentHolder = append(deploymentHolder, deploymentInfo)
-				} else {
-					deploymentInfo := DeploymentInfo{
-						Name:      deploy.Name,
-						Namespace: deploy.Namespace,
-						SecretRef: env.ValueFrom.SecretKeyRef,
-					}
-					deploymentHolder = append(deploymentHolder, deploymentInfo)
+				if env.ValueFrom != nil && env.ValueFrom.SecretKeyRef != nil {
+					// Set SecretRef and break out of inner loops
+					deploymentInfo.SecretRef = env.ValueFrom.SecretKeyRef
+					deploymentAdded = true
+					break
 				}
-
+			}
+			if deploymentAdded {
+				break
 			}
 		}
 
+		// Append the deployment info only once per deployment
+		deploymentHolder = append(deploymentHolder, deploymentInfo)
 	}
 
 	return deploymentHolder, nil
