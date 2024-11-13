@@ -875,7 +875,7 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 	retryInterval := 10 * time.Second
 
 	// Retrieve custom ingress name from 'custom-values-holder' ConfigMap, if it exists
-	customIngressName, err := r.getCustomIngressName(ctx, pmc.Namespace)
+	customIngressName, err := r.getCustomIngressName(ctx, "hossted-platform")
 	if err != nil {
 		return err
 	}
