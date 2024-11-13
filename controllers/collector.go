@@ -791,6 +791,9 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 
 // getCustomIngressName checks if 'custom-values-holder' ConfigMap has a custom ingress name
 func (r *HosstedProjectReconciler) getCustomIngressName(ctx context.Context, namespace string) (string, error) {
+
+	// Fetch ConfigMap
+	log.Println("Fetching ConfigMap 'custom-values-holder'", "namespace", namespace)
 	cm := v1.ConfigMap{}
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Namespace: namespace,
@@ -798,23 +801,41 @@ func (r *HosstedProjectReconciler) getCustomIngressName(ctx context.Context, nam
 	}, &cm)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
+			log.Println("ConfigMap 'custom-values-holder' not found", "namespace", namespace)
 			return "", nil // ConfigMap not found, no custom ingress name
 		}
+		log.Println(err, "Failed to fetch ConfigMap 'custom-values-holder'")
 		return "", err
 	}
+	log.Println("ConfigMap 'custom-values-holder' fetched successfully", "data", cm.Data)
 
 	// Check for "hosstedCustomIngressName" in custom-values.json
-	if jsonString, ok := cm.Data["custom-values.json"]; ok {
-		var data map[string][]string
-		err = json.Unmarshal([]byte(jsonString), &data)
-		if err != nil {
-			return "", fmt.Errorf("failed to unmarshal custom-values.json: %w", err)
-		}
-		if len(data["hosstedCustomIngressName"]) > 0 {
-			return data["hosstedCustomIngressName"][0], nil // Return the first ingress name if available
-		}
+	jsonString, ok := cm.Data["custom-values.json"]
+	if !ok {
+		log.Printf("'custom-values.json' not found in ConfigMap data")
+		return "", nil // Key not found, no custom ingress name
 	}
-	return "", nil // No custom ingress name found
+
+	log.Printf("'custom-values.json' found in ConfigMap data", "jsonString", jsonString)
+
+	var data map[string][]string
+	err = json.Unmarshal([]byte(jsonString), &data)
+	if err != nil {
+		log.Println(err, "Failed to unmarshal 'custom-values.json'")
+		return "", fmt.Errorf("failed to unmarshal custom-values.json: %w", err)
+	}
+	log.Printf("Successfully unmarshalled 'custom-values.json'", "data", data)
+
+	// Access the ingress name if present
+	ingressNames, exists := data["hosstedCustomIngressName"]
+	if !exists || len(ingressNames) == 0 {
+		log.Println("'hosstedCustomIngressName' not found or empty in 'custom-values.json'")
+		return "", nil // No custom ingress name found
+	}
+
+	customIngressName := ingressNames[0]
+	log.Println("Custom ingress name found", "customIngressName", customIngressName)
+	return customIngressName, nil
 }
 
 // getDns retrieves ingress and returns DnsInfo
