@@ -995,6 +995,9 @@ func tweakIngressHostname(existingStrings []string, dnsName string) []string {
 		case strings.HasPrefix(str, "server.ingress.hostname="):
 			str = "server.ingress.hostname=" + lowercaseDNSName
 			log.Printf("Modified 'server.ingress.hostname=' entry: %s -> %s", originalStr, str)
+		case strings.HasPrefix(str, "global.domain="):
+			str = "global.domain=" + lowercaseDNSName
+			log.Printf("Modified 'global.domain=' entry: %s -> %s", originalStr, str)
 		default:
 			log.Printf("No modification needed for entry: %s", str)
 		}
