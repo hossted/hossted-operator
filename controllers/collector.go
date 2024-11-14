@@ -974,8 +974,6 @@ func toLowerCase(input string) string {
 // tweakIngressHostname modifies existing strings to include a custom DNS name for ingress hostname settings
 func tweakIngressHostname(existingStrings []string, dnsName string) []string {
 	updatedStrings := make([]string, 0)
-
-	// Convert the DNS name to lowercase
 	lowercaseDNSName := strings.ToLower(dnsName)
 	log.Printf("Converted DNS name to lowercase: %s", lowercaseDNSName)
 
@@ -983,24 +981,25 @@ func tweakIngressHostname(existingStrings []string, dnsName string) []string {
 	for _, str := range existingStrings {
 		originalStr := str // Store the original string for debugging
 
-		// Check and modify strings that match specific patterns
-		if strings.Contains(str, "ingress.hostname=") {
+		// Check and modify strings with exact prefixes
+		switch {
+		case strings.HasPrefix(str, "ingress.hostname="):
 			str = "ingress.hostname=" + lowercaseDNSName
 			log.Printf("Modified 'ingress.hostname=' entry: %s -> %s", originalStr, str)
-		} else if strings.Contains(str, "ingress.hosts[0]=") {
+		case strings.HasPrefix(str, "ingress.hosts[0]="):
 			str = "ingress.hosts[0]=" + lowercaseDNSName
 			log.Printf("Modified 'ingress.hosts[0]=' entry: %s -> %s", originalStr, str)
-		} else if strings.Contains(str, "ingress.hosts[0].host=") {
+		case strings.HasPrefix(str, "ingress.hosts[0].host="):
 			str = "ingress.hosts[0].host=" + lowercaseDNSName
 			log.Printf("Modified 'ingress.hosts[0].host=' entry: %s -> %s", originalStr, str)
-		} else if strings.Contains(str, "server.ingress.hostname=") {
+		case strings.HasPrefix(str, "server.ingress.hostname="):
 			str = "server.ingress.hostname=" + lowercaseDNSName
 			log.Printf("Modified 'server.ingress.hostname=' entry: %s -> %s", originalStr, str)
-		} else {
+		default:
 			log.Printf("No modification needed for entry: %s", str)
 		}
 
-		// Keep the modified or original string in the updated list
+		// Add the modified or original string to the updated list
 		updatedStrings = append(updatedStrings, str)
 	}
 
