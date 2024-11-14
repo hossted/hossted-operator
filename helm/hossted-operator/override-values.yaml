@@ -1,71 +1,60 @@
+customValuesHolder:
+  hosstedCustomIngressName:
+  - hossted-argocd-server
+cve:
+  enable: false
 env:
-  HOSSTED_API_URL: "https://api.hossted.com/v1/instances"
-  EMAIL_ID: ""
-  RECONCILE_DURATION: "10s"
-  HOSSTED_ORG_ID: ""
+  AWS_REGION: us-east-1
+  CLOUD_PROVIDER: placeholder
   CONTEXT_NAME: ""
+  EMAIL_ID: ""
+  HOSSTED_API_URL: https://api.hossted.com/v1/instances
+  HOSSTED_ORG_ID: ""
+  HOSSTED_TOKEN: ""
+  HOSSTED_USER_ID: ""
   LOKI_PASSWORD: ""
   LOKI_URL: ""
   LOKI_USERNAME: ""
+  MARKET_PLACE: enabled
   MIMIR_PASSWORD: ""
   MIMIR_URL: ""
   MIMIR_USERNAME: ""
-  CLOUD_PROVIDER: "cloud"
-  MARKET_PLACE: "enabled"
-  PRODUCT_CODE: "5e3lv67alg3wd65pspyfuunxm"
-  AWS_REGION: "us-east-1"
-  HOSSTED_TOKEN: ""
-  HOSSTED_USER_ID: ""
-
-
-replicas: 1
-
-secret:
-  HOSSTED_AUTH_TOKEN: "notoken"
-
-stop: true
-
-cve:
-  enable: false
-monitoring:
+  PRODUCT_CODE: helloworld
+  RECONCILE_DURATION: 10s
+helm:
+- chartName: argo-cd
+  namespace: hossted-argocd
+  releaseName: hossted-argocd
+  repoName: argo
+  repoUrl: https://argoproj.github.io/argo-helm
+  values:
+  - global.domain=argocd.f.hossted.app
+  - configs.params.server\.insecure=true
+  - server.ingress.enabled=true
+  - server.ingress.hostname=argocd.f.hossted.app
+  - server.ingress.ingressClassName=hossted-operator
+  - server.ingress.tls=false
+  - server.ingress.annotations.nginx\.ingress\.kubernetes\.io/backend-protocol=HTTP
+ingress:
   enable: false
 logging:
   enable: false
-ingress:
+monitoring:
   enable: false
-
 nameOverride: hossted
-
 operator:
   image:
     repository: hossted/operator
     tag: edge
-
 primaryCreds:
-  namespace: "hossted-wiki"
-  secret: 
-    type: "basic-auth"
-    name: "wiki-basic-auth"
-    value: "hossted-admin:hossted-admin-password"
-
-customValuesHolder: {}
-  # hosstedCustomIngressName:
-  #   - hossted-argocd-server
-helm:
-  - releaseName: "hossted-wiki"
-    namespace: "hossted-wiki"
-    values: 
-      - "ingress.enabled=true"
-      - "ingress.hosts[0].host=wiki.f.hossted.app"
-      - "ingress.hosts[0].paths[0].path=/"
-      - "ingress.hosts[0].paths[0].pathType=Prefix"
-      - "ingress.className=hossted-operator"
-      - "ingress.annotations.nginx\\.ingress\\.kubernetes\\.io/auth-type=basic"
-      - "ingress.annotations.nginx\\.ingress\\.kubernetes\\.io/auth-secret=wiki-basic-auth"
-    repoName: "requarks"
-    chartName: "wiki"
-    repoUrl: "https://charts.js.wiki"
-
+  namespace: hossted-argocd
+  password:
+    key: password
+    secretName: argocd-initial-admin-secret
+replicas: 1
+secret:
+  HOSSTED_AUTH_TOKEN: notoken
 serviceAccount:
-  create: true          
-  name: "hossted-wiki"
+  create: true
+  name: hossted-argocd
+stop: true

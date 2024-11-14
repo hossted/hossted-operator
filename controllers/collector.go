@@ -779,7 +779,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 		}
 	}
 
-	log.Printf("access info object %v", access)
+	// log.Printf("access info object %v", access)
 
 	if len(access.URLs) == 0 {
 		log.Printf("no matching Ingress found with class %s\n", ingressClassName)
@@ -791,6 +791,9 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 
 // getCustomIngressName checks if 'custom-values-holder' ConfigMap has a custom ingress name
 func (r *HosstedProjectReconciler) getCustomIngressName(ctx context.Context, namespace string) (string, error) {
+
+	// Fetch ConfigMap
+	log.Println("Fetching ConfigMap 'custom-values-holder'", "namespace", namespace)
 	cm := v1.ConfigMap{}
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Namespace: namespace,
@@ -798,23 +801,41 @@ func (r *HosstedProjectReconciler) getCustomIngressName(ctx context.Context, nam
 	}, &cm)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
+			log.Println("ConfigMap 'custom-values-holder' not found", "namespace", namespace)
 			return "", nil // ConfigMap not found, no custom ingress name
 		}
+		log.Println(err, "Failed to fetch ConfigMap 'custom-values-holder'")
 		return "", err
 	}
+	log.Println("ConfigMap 'custom-values-holder' fetched successfully", "data", cm.Data)
 
 	// Check for "hosstedCustomIngressName" in custom-values.json
-	if jsonString, ok := cm.Data["custom-values.json"]; ok {
-		var data map[string][]string
-		err = json.Unmarshal([]byte(jsonString), &data)
-		if err != nil {
-			return "", fmt.Errorf("failed to unmarshal custom-values.json: %w", err)
-		}
-		if len(data["hosstedCustomIngressName"]) > 0 {
-			return data["hosstedCustomIngressName"][0], nil // Return the first ingress name if available
-		}
+	jsonString, ok := cm.Data["custom-values.json"]
+	if !ok {
+		log.Printf("'custom-values.json' not found in ConfigMap data")
+		return "", nil // Key not found, no custom ingress name
 	}
-	return "", nil // No custom ingress name found
+
+	log.Printf("'custom-values.json' found in ConfigMap data", "jsonString", jsonString)
+
+	var data map[string][]string
+	err = json.Unmarshal([]byte(jsonString), &data)
+	if err != nil {
+		log.Println(err, "Failed to unmarshal 'custom-values.json'")
+		return "", fmt.Errorf("failed to unmarshal custom-values.json: %w", err)
+	}
+	log.Printf("Successfully unmarshalled 'custom-values.json'", "data", data)
+
+	// Access the ingress name if present
+	ingressNames, exists := data["hosstedCustomIngressName"]
+	if !exists || len(ingressNames) == 0 {
+		log.Println("'hosstedCustomIngressName' not found or empty in 'custom-values.json'")
+		return "", nil // No custom ingress name found
+	}
+
+	customIngressName := ingressNames[0]
+	log.Println("Custom ingress name found", "customIngressName", customIngressName)
+	return customIngressName, nil
 }
 
 // getDns retrieves ingress and returns DnsInfo
@@ -854,7 +875,7 @@ func (r *HosstedProjectReconciler) getDns(ctx context.Context, instance *hossted
 	retryInterval := 10 * time.Second
 
 	// Retrieve custom ingress name from 'custom-values-holder' ConfigMap, if it exists
-	customIngressName, err := r.getCustomIngressName(ctx, pmc.Namespace)
+	customIngressName, err := r.getCustomIngressName(ctx, "hossted-platform")
 	if err != nil {
 		return err
 	}
@@ -950,29 +971,43 @@ func toLowerCase(input string) string {
 	return strings.ToLower(input)
 }
 
+// tweakIngressHostname modifies existing strings to include a custom DNS name for ingress hostname settings
 func tweakIngressHostname(existingStrings []string, dnsName string) []string {
 	updatedStrings := make([]string, 0)
-
-	// Convert the DNS name to lowercase
 	lowercaseDNSName := strings.ToLower(dnsName)
+	log.Printf("Converted DNS name to lowercase: %s", lowercaseDNSName)
 
 	// Iterate through the existing strings
 	for _, str := range existingStrings {
-		// Check if the string contains "ingress.hostname=" or "ingress.hosts[0]="
-		if strings.Contains(str, "ingress.hostname=") {
-			// Modify the string by appending the lowercase DNS name
+		originalStr := str // Store the original string for debugging
+
+		// Check and modify strings with exact prefixes
+		switch {
+		case strings.HasPrefix(str, "ingress.hostname="):
 			str = "ingress.hostname=" + lowercaseDNSName
-		} else if strings.Contains(str, "ingress.hosts[0]=") {
-			// Modify the string by appending the lowercase DNS name
+			log.Printf("Modified 'ingress.hostname=' entry: %s -> %s", originalStr, str)
+		case strings.HasPrefix(str, "ingress.hosts[0]="):
 			str = "ingress.hosts[0]=" + lowercaseDNSName
-		} else if strings.Contains(str, "ingress.hosts[0].host=") {
+			log.Printf("Modified 'ingress.hosts[0]=' entry: %s -> %s", originalStr, str)
+		case strings.HasPrefix(str, "ingress.hosts[0].host="):
 			str = "ingress.hosts[0].host=" + lowercaseDNSName
+			log.Printf("Modified 'ingress.hosts[0].host=' entry: %s -> %s", originalStr, str)
+		case strings.HasPrefix(str, "server.ingress.hostname="):
+			str = "server.ingress.hostname=" + lowercaseDNSName
+			log.Printf("Modified 'server.ingress.hostname=' entry: %s -> %s", originalStr, str)
+		case strings.HasPrefix(str, "global.domain="):
+			str = "global.domain=" + lowercaseDNSName
+			log.Printf("Modified 'global.domain=' entry: %s -> %s", originalStr, str)
+		default:
+			log.Printf("No modification needed for entry: %s", str)
 		}
-		// Keep the existing string (either modified or original) in the updated list
+
+		// Add the modified or original string to the updated list
 		updatedStrings = append(updatedStrings, str)
 	}
 
-	// Return the updated list of strings
+	// Final log of all updated strings
+	log.Printf("Final updated list of strings: %v", updatedStrings)
 	return updatedStrings
 }
 
