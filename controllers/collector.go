@@ -779,7 +779,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 		}
 	}
 
-	log.Printf("access info object %v", access)
+	// log.Printf("access info object %v", access)
 
 	if len(access.URLs) == 0 {
 		log.Printf("no matching Ingress found with class %s\n", ingressClassName)
