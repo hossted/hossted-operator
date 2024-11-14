@@ -971,31 +971,41 @@ func toLowerCase(input string) string {
 	return strings.ToLower(input)
 }
 
+// tweakIngressHostname modifies existing strings to include a custom DNS name for ingress hostname settings
 func tweakIngressHostname(existingStrings []string, dnsName string) []string {
 	updatedStrings := make([]string, 0)
 
 	// Convert the DNS name to lowercase
 	lowercaseDNSName := strings.ToLower(dnsName)
+	log.Printf("Converted DNS name to lowercase: %s", lowercaseDNSName)
 
 	// Iterate through the existing strings
 	for _, str := range existingStrings {
-		// Check if the string contains "ingress.hostname=" or "ingress.hosts[0]="
+		originalStr := str // Store the original string for debugging
+
+		// Check and modify strings that match specific patterns
 		if strings.Contains(str, "ingress.hostname=") {
-			// Modify the string by appending the lowercase DNS name
 			str = "ingress.hostname=" + lowercaseDNSName
+			log.Printf("Modified 'ingress.hostname=' entry: %s -> %s", originalStr, str)
 		} else if strings.Contains(str, "ingress.hosts[0]=") {
-			// Modify the string by appending the lowercase DNS name
 			str = "ingress.hosts[0]=" + lowercaseDNSName
+			log.Printf("Modified 'ingress.hosts[0]=' entry: %s -> %s", originalStr, str)
 		} else if strings.Contains(str, "ingress.hosts[0].host=") {
 			str = "ingress.hosts[0].host=" + lowercaseDNSName
+			log.Printf("Modified 'ingress.hosts[0].host=' entry: %s -> %s", originalStr, str)
 		} else if strings.Contains(str, "server.ingress.hostname=") {
 			str = "server.ingress.hostname=" + lowercaseDNSName
+			log.Printf("Modified 'server.ingress.hostname=' entry: %s -> %s", originalStr, str)
+		} else {
+			log.Printf("No modification needed for entry: %s", str)
 		}
-		// Keep the existing string (either modified or original) in the updated list
+
+		// Keep the modified or original string in the updated list
 		updatedStrings = append(updatedStrings, str)
 	}
 
-	// Return the updated list of strings
+	// Final log of all updated strings
+	log.Printf("Final updated list of strings: %v", updatedStrings)
 	return updatedStrings
 }
 
