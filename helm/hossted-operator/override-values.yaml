@@ -19,7 +19,7 @@ env:
   MIMIR_PASSWORD: ""
   MIMIR_URL: ""
   MIMIR_USERNAME: ""
-  PRODUCT_CODE: 5e3lv67alg3wd65pspyfuunxm
+  PRODUCT_CODE: helloworld
   RECONCILE_DURATION: 10s
 helm:
 - chartName: argo-cd
