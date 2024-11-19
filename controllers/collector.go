@@ -1016,12 +1016,14 @@ func searchForTextInFile(fileContent, searchText string) (string, error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		// Check if the line contains the search text
-		if strings.HasPrefix(line, searchText) {
-			// Split the line based on '=' to get the value
-			parts := strings.SplitN(line, "=", 2)
-			if len(parts) == 2 {
-				// Return the value after trimming spaces
-				return strings.TrimSpace(parts[1]), nil
+		if strings.Contains(line, searchText) {
+			// Extract the value after the search text
+			// Example: "--username hossted-admin" -> "hossted-admin"
+			parts := strings.Fields(line) // Split line into fields
+			for i, part := range parts {
+				if part == searchText && i+1 < len(parts) {
+					return parts[i+1], nil // Return the next field
+				}
 			}
 		}
 	}
