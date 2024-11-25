@@ -561,170 +561,170 @@ func (r *HosstedProjectReconciler) handleVulnReports(ctx context.Context, namesp
 
 func generateConfigMap(uuid, lokiURL, lokiUser, lokiPass, mimirURL, mimirUser, mimirPass string) string {
 	configMapTemplate := `
-      discovery.kubernetes "metrics_integrations_kubernetes_nodes_cadvisor" {
-        role = "node"
-      }
+discovery.kubernetes "metrics_integrations_kubernetes_nodes_cadvisor" {
+  role = "node"
+}
 
-      discovery.kubernetes "metrics_integrations_integrations_kubernetes_kube_state_metrics" {
-        role = "pod"
-      }
+discovery.kubernetes "metrics_integrations_integrations_kubernetes_kube_state_metrics" {
+  role = "pod"
+}
 
-      discovery.relabel "metrics_integrations_kubernetes_nodes_cadvisor" {
-        targets = discovery.kubernetes.metrics_integrations_kubernetes_nodes_cadvisor.targets
+discovery.relabel "metrics_integrations_kubernetes_nodes_cadvisor" {
+  targets = discovery.kubernetes.metrics_integrations_kubernetes_nodes_cadvisor.targets
 
-        rule {
-          regex  = "__meta_kubernetes_node_label_(.+)"
-          action = "labelmap"
-        }
+  rule {
+    regex  = "__meta_kubernetes_node_label_(.+)"
+    action = "labelmap"
+  }
 
-        rule {
-          target_label = "__address__"
-          replacement  = "kubernetes.default.svc:443"
-        }
+  rule {
+    target_label = "__address__"
+    replacement  = "kubernetes.default.svc:443"
+  }
 
-        rule {
-          source_labels = ["__meta_kubernetes_node_name"]
-          regex         = "(.+)"
-          target_label  = "__metrics_path__"
-          replacement   = "/api/v1/nodes/$1/proxy/metrics/cadvisor"
-        }
-      }
+  rule {
+    source_labels = ["__meta_kubernetes_node_name"]
+    regex         = "(.+)"
+    target_label  = "__metrics_path__"
+    replacement   = "/api/v1/nodes/$1/proxy/metrics/cadvisor"
+  }
+}
 
-      discovery.relabel "metrics_integrations_integrations_kubernetes_kube_state_metrics" {
-        targets = discovery.kubernetes.metrics_integrations_integrations_kubernetes_kube_state_metrics.targets
+discovery.relabel "metrics_integrations_integrations_kubernetes_kube_state_metrics" {
+  targets = discovery.kubernetes.metrics_integrations_integrations_kubernetes_kube_state_metrics.targets
 
-        rule {
-          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
-          regex         = "kube-state-metrics"
-          action        = "keep"
-        }
-      }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+    regex         = "kube-state-metrics"
+    action        = "keep"
+  }
+}
 
-      prometheus.scrape "metrics_integrations_kubernetes_nodes_cadvisor" {
-        targets         = discovery.relabel.metrics_integrations_kubernetes_nodes_cadvisor.output
-        forward_to      = [prometheus.remote_write.metrics_integrations.receiver]
-        job_name        = "kubernetes-nodes-cadvisor"
-        scrape_interval = "30s"
-        scheme          = "https"
+prometheus.scrape "metrics_integrations_kubernetes_nodes_cadvisor" {
+  targets         = discovery.relabel.metrics_integrations_kubernetes_nodes_cadvisor.output
+  forward_to      = [prometheus.remote_write.metrics_integrations.receiver]
+  job_name        = "kubernetes-nodes-cadvisor"
+  scrape_interval = "30s"
+  scheme          = "https"
 
-        authorization {
-          type             = "Bearer"
-          credentials_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-        }
+  authorization {
+    type             = "Bearer"
+    credentials_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+  }
 
-        tls_config {
-          ca_file              = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-          insecure_skip_verify = true
-        }
-      }
+  tls_config {
+    ca_file              = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+    insecure_skip_verify = true
+  }
+}
 
-      prometheus.scrape "metrics_integrations_integrations_kubernetes_kube_state_metrics" {
-        targets         = discovery.relabel.metrics_integrations_integrations_kubernetes_kube_state_metrics.output
-        forward_to      = [prometheus.relabel.metrics_integrations_integrations_kubernetes_kube_state_metrics.receiver]
-        job_name        = "integrations/kubernetes/kube-state-metrics"
-        scrape_interval = "30s"
-      }
+prometheus.scrape "metrics_integrations_integrations_kubernetes_kube_state_metrics" {
+  targets         = discovery.relabel.metrics_integrations_integrations_kubernetes_kube_state_metrics.output
+  forward_to      = [prometheus.relabel.metrics_integrations_integrations_kubernetes_kube_state_metrics.receiver]
+  job_name        = "integrations/kubernetes/kube-state-metrics"
+  scrape_interval = "30s"
+}
 
-      prometheus.relabel "metrics_integrations_integrations_kubernetes_kube_state_metrics" {
-        forward_to = [prometheus.remote_write.metrics_integrations.receiver]
+prometheus.relabel "metrics_integrations_integrations_kubernetes_kube_state_metrics" {
+  forward_to = [prometheus.remote_write.metrics_integrations.receiver]
 
-        rule {
-          source_labels = ["__name__"]
-          regex         = ".*"
-          action        = "keep"
-        }
-      }
+  rule {
+    source_labels = ["__name__"]
+    regex         = ".*"
+    action        = "keep"
+  }
+}
 
-      prometheus.operator.servicemonitors "services" {
-        forward_to = [prometheus.remote_write.metrics_integrations.receiver]
-      }
+prometheus.operator.servicemonitors "services" {
+  forward_to = [prometheus.remote_write.metrics_integrations.receiver]
+}
 
-      prometheus.remote_write "metrics_integrations" {
-        external_labels = {
-          uuid = "%s",
-        }
+prometheus.remote_write "metrics_integrations" {
+  external_labels = {
+    uuid = "%s",
+  }
 
-        endpoint {
-          url  = "%s"
-          basic_auth {
-            username = "%s"
-            password = "%s"
-          }
-        }
-      }
+  endpoint {
+    url  = "%s"
+    basic_auth {
+      username = "%s"
+      password = "%s"
+    }
+  }
+}
 
-      discovery.kubernetes "logs_default_integrations_kubernetes_pod_logs" {
-        role = "pod"
-      }
+discovery.kubernetes "logs_default_integrations_kubernetes_pod_logs" {
+  role = "pod"
+}
 
-      discovery.relabel "logs_default_integrations_kubernetes_pod_logs" {
-        targets = discovery.kubernetes.logs_default_integrations_kubernetes_pod_logs.targets
+discovery.relabel "logs_default_integrations_kubernetes_pod_logs" {
+  targets = discovery.kubernetes.logs_default_integrations_kubernetes_pod_logs.targets
 
-        rule {
-          source_labels = ["__meta_kubernetes_pod_node_name"]
-          target_label  = "__host__"
-        }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_node_name"]
+    target_label  = "__host__"
+  }
 
-        rule {
-          source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_name"]
-          separator     = "/"
-          target_label  = "job"
-        }
+  rule {
+    source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_name"]
+    separator     = "/"
+    target_label  = "job"
+  }
 
-        rule {
-          source_labels = ["__meta_kubernetes_namespace"]
-          target_label  = "namespace"
-        }
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    target_label  = "namespace"
+  }
 
-        rule {
-          source_labels = ["__meta_kubernetes_pod_name"]
-          target_label  = "pod"
-        }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    target_label  = "pod"
+  }
 
-        rule {
-          source_labels = ["__meta_kubernetes_pod_container_name"]
-          target_label  = "container"
-        }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_name"]
+    target_label  = "container"
+  }
 
-        rule {
-          source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
-          separator     = "/"
-          target_label  = "__path__"
-          replacement   = "/var/log/pods/*$1/*.log"
-        }
-      }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+    separator     = "/"
+    target_label  = "__path__"
+    replacement   = "/var/log/pods/*$1/*.log"
+  }
+}
 
-      local.file_match "logs_default_integrations_kubernetes_pod_logs" {
-        path_targets = discovery.relabel.logs_default_integrations_kubernetes_pod_logs.output
-      }
+local.file_match "logs_default_integrations_kubernetes_pod_logs" {
+  path_targets = discovery.relabel.logs_default_integrations_kubernetes_pod_logs.output
+}
 
-      loki.process "logs_default_integrations_kubernetes_pod_logs" {
-        forward_to = [loki.write.logs_default.receiver]
-        stage.docker { }
-      }
+loki.process "logs_default_integrations_kubernetes_pod_logs" {
+  forward_to = [loki.write.logs_default.receiver]
+  stage.docker { }
+}
 
-      loki.source.file "logs_default_integrations_kubernetes_pod_logs" {
-        targets               = local.file_match.logs_default_integrations_kubernetes_pod_logs.targets
-        forward_to            = [loki.process.logs_default_integrations_kubernetes_pod_logs.receiver]
-        legacy_positions_file = "/tmp/positions.yaml"
-      }
+loki.source.file "logs_default_integrations_kubernetes_pod_logs" {
+  targets               = local.file_match.logs_default_integrations_kubernetes_pod_logs.targets
+  forward_to            = [loki.process.logs_default_integrations_kubernetes_pod_logs.receiver]
+  legacy_positions_file = "/tmp/positions.yaml"
+}
 
-      loki.write "logs_default" {
-        endpoint {
-          url = "%s"
-          basic_auth {
-            username = "%s"
-            password = "%s"
-          }
-        }
-        external_labels = {
-          uuid = "%s",
-        }
-      }
+loki.write "logs_default" {
+  endpoint {
+    url = "%s"
+    basic_auth {
+      username = "%s"
+      password = "%s"
+    }
+  }
+  external_labels = {
+    uuid = "%s",
+  }
+}
 
-      logging {
-        level = "debug"
-      }`
+logging {
+  level = "debug"
+}`
 
 	return fmt.Sprintf(configMapTemplate,
 		uuid, mimirURL, mimirUser, mimirPass,
