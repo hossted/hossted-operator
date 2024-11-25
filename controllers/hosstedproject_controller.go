@@ -557,9 +557,7 @@ func (r *HosstedProjectReconciler) handleVulnReports(ctx context.Context, namesp
 // }
 
 func generateConfigMap(uuid, lokiURL, lokiUser, lokiPass, mimirURL, mimirUser, mimirPass string) string {
-	configMapTemplate := `alloy:
-  configMap:
-    content: |
+	configMapTemplate := `
       discovery.kubernetes "metrics_integrations_kubernetes_nodes_cadvisor" {
         role = "node"
       }
