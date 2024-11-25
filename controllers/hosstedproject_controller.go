@@ -8,6 +8,8 @@ import (
 	"os"
 	"sort"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"time"
 
 	trivy "github.com/aquasecurity/trivy-operator/pkg/apis/aquasecurity/v1alpha1"
@@ -17,6 +19,7 @@ import (
 	helm "github.com/hossted/hossted-operator/pkg/helm"
 	internalHTTP "github.com/hossted/hossted-operator/pkg/http"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -331,11 +334,6 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 	mimirUser := os.Getenv("MIMIR_USERNAME")
 	mimirPass := os.Getenv("MIMIR_PASSWORD")
 
-	debug := generateConfigMap(
-		uuid, lokiURL, lokiUser, lokiPass, mimirURL, mimirUser, mimirPass,
-	)
-	fmt.Println(debug)
-
 	h := helm.Helm{
 		ReleaseName: "hossted-grafana-alloy",
 		ChartName:   "alloy",
@@ -343,7 +341,7 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 		RepoUrl:     "https://grafana.github.io/helm-charts",
 		Namespace:   "hossted-platform",
 		Values: []string{
-			fmt.Sprintf("alloy.configMap.content='%s'", generateConfigMap(uuid, lokiURL, lokiUser, lokiPass, mimirURL, mimirUser, mimirPass)),
+			"alloy.configMap.create=" + "false",
 		},
 	}
 
@@ -370,6 +368,12 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 
 			// install kubestate metrics
 			// Install Grafana Agent
+			err := r.createConfigMap(uuid, lokiURL, lokiUser, lokiPass, mimirURL, mimirUser, mimirPass)
+			if err != nil {
+				log.Println("failed to create configmap %w", err)
+
+			}
+
 			err = helm.Apply(h)
 			if err != nil {
 				fmt.Println("grafana-allow for monitoring failed %w", err)
@@ -729,4 +733,30 @@ logging {
 	return fmt.Sprintf(configMapTemplate,
 		uuid, mimirURL, mimirUser, mimirPass,
 		lokiURL, lokiUser, lokiPass, uuid)
+}
+
+// CreateConfigMap creates a ConfigMap in Kubernetes using the client-go client
+func (r *HosstedProjectReconciler) createConfigMap(uuid, lokiURL, lokiUser, lokiPass, mimirURL, mimirUser, mimirPass string) error {
+	// Generate the configMap data
+	configMapData := generateConfigMap(uuid, lokiURL, lokiUser, lokiPass, mimirURL, mimirUser, mimirPass)
+
+	// Create the ConfigMap object
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "hossted-grafana-alloy", // Name of the ConfigMap
+			Namespace: "hossted-platform",      // Namespace where the ConfigMap will be created
+		},
+		Data: map[string]string{
+			"config.alloy": configMapData,
+		},
+	}
+
+	// Use the Kubernetes client to create the ConfigMap in the specified namespace
+	// Use client to create the ConfigMap
+	if err := r.Client.Create(context.TODO(), configMap); err != nil {
+		return fmt.Errorf("failed to create configmap: %v", err)
+	}
+
+	log.Println("ConfigMap created successfully!")
+	return nil
 }
