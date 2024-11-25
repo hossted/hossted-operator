@@ -359,7 +359,7 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 	// Check if monitoring is enabled
 	if instance.Spec.Monitoring.Enable {
 		// Check if Grafana Agent release already exists
-		ok, err := helm.ListRelease(h.ChartName, h.Namespace)
+		ok, err := helm.ListRelease("hossted-grafana-alloy", h.Namespace)
 		if err != nil {
 			return err
 		}
@@ -376,7 +376,7 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 
 			err = helm.Apply(h)
 			if err != nil {
-				fmt.Println("grafana-allow for monitoring failed %w", err)
+				fmt.Println("grafana alloy for monitoring failed %w", err)
 			}
 			err = helm.Apply(ksm)
 			if err != nil {
@@ -398,9 +398,9 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 			}
 
 			// Delete Grafana Agent release if it exists
-			err_del = helm.DeleteRelease(h.ChartName, h.Namespace)
+			err_del = helm.DeleteRelease("hossted-grafana-alloy", h.Namespace)
 			if err_del != nil {
-				return fmt.Errorf("grafana Agent deletion failed %w", err_del)
+				return fmt.Errorf("grafana alloy deletion failed %w", err_del)
 			}
 
 			err := r.Client.Delete(ctx, &appsv1.DaemonSet{
