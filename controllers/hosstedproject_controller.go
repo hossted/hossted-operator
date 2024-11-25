@@ -338,7 +338,7 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 		RepoUrl:     "https://grafana.github.io/helm-charts",
 		Namespace:   "hossted-platform",
 		Values: []string{
-			"alloy.config.content=" + generateConfigMap(
+			"alloy.configMap.content=" + generateConfigMap(
 				uuid, lokiURL, lokiUser, lokiPass, mimirURL, mimirUser, mimirPass,
 			),
 		},
