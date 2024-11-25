@@ -816,7 +816,7 @@ func (r *HosstedProjectReconciler) getCustomIngressName(ctx context.Context, nam
 		return "", nil // Key not found, no custom ingress name
 	}
 
-	log.Printf("'custom-values.json' found in ConfigMap data", "jsonString", jsonString)
+	log.Print("'custom-values.json' found in ConfigMap data", "jsonString", jsonString)
 
 	var data map[string][]string
 	err = json.Unmarshal([]byte(jsonString), &data)
@@ -824,7 +824,7 @@ func (r *HosstedProjectReconciler) getCustomIngressName(ctx context.Context, nam
 		log.Println(err, "Failed to unmarshal 'custom-values.json'")
 		return "", fmt.Errorf("failed to unmarshal custom-values.json: %w", err)
 	}
-	log.Printf("Successfully unmarshalled 'custom-values.json'", "data", data)
+	log.Print("Successfully unmarshalled 'custom-values.json'", "data", data)
 
 	// Access the ingress name if present
 	ingressNames, exists := data["hosstedCustomIngressName"]
