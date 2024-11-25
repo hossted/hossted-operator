@@ -331,6 +331,11 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 	mimirUser := os.Getenv("MIMIR_USERNAME")
 	mimirPass := os.Getenv("MIMIR_PASSWORD")
 
+	debug := generateConfigMap(
+		uuid, lokiURL, lokiUser, lokiPass, mimirURL, mimirUser, mimirPass,
+	)
+	fmt.Println(debug)
+
 	h := helm.Helm{
 		ReleaseName: "hossted-grafana-alloy",
 		ChartName:   "alloy",
