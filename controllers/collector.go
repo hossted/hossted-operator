@@ -62,12 +62,24 @@ type AccessInfo struct {
 
 // AppAPIInfo contains basic information about the application API.
 type AppAPIInfo struct {
-	OrgID       string `json:"org_id"`
-	ClusterUUID string `json:"cluster_uuid"`
-	AppUUID     string `json:"app_uuid"`
-	AppName     string `json:"app_name"`
-	Type        string `json:"type"`
-	HosstedHelm bool   `json:"hossted_helm"`
+	OrgID        string       `json:"org_id"`
+	ClusterUUID  string       `json:"cluster_uuid"`
+	AppUUID      string       `json:"app_uuid"`
+	AppName      string       `json:"app_name"`
+	Type         string       `json:"type"`
+	HosstedHelm  bool         `json:"hossted_helm"`
+	OptionsState OptionsState `json:"options_state,omitempty"`
+}
+
+// OptionsState defines the monitoring options within AppAPIInfo.
+type OptionsState struct {
+	Monitoring MonitoringOptions `json:"monitoring"`
+}
+
+// MonitoringOptions defines the structure of the 'monitoring' field.
+type MonitoringOptions struct {
+	Enabled            bool   `json:"enabled"`
+	GrafanaProductName string `json:"grafana_product_name"`
 }
 
 // ServiceInfo contains information about a Kubernetes service.
@@ -210,6 +222,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			deploymentHolder  []DeploymentInfo
 			statefulsetHolder []StatefulsetInfo
 			secretHolder      []SecretInfo
+			osstate           OptionsState
 		)
 		for _, release := range releases {
 			helmInfo, err = r.getHelmInfo(*release, instance)
@@ -295,14 +308,33 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 				SecretInfo:      secretHolder,
 			}
 
+			var gpn string
+			gpn = helmInfo.Name
+			if os.Getenv("MARKET_PLACE") == "enabled" {
+				gpn, err = r.getGrafanaProductName(ctx)
+				if err != nil {
+					log.Printf("error getting grafana product name %s", err)
+				}
+			}
+
+			if gpn != "" {
+				osstate = OptionsState{
+					Monitoring: MonitoringOptions{
+						Enabled:            true,
+						GrafanaProductName: gpn,
+					},
+				}
+			}
+
 			collector := &Collector{
 				AppAPIInfo: AppAPIInfo{
-					AppName:     appInfo.HelmInfo.Name,
-					OrgID:       os.Getenv("HOSSTED_ORG_ID"),
-					ClusterUUID: instance.Status.ClusterUUID,
-					AppUUID:     appInfo.HelmInfo.AppUUID,
-					Type:        "k8s",
-					HosstedHelm: appInfo.HelmInfo.HosstedHelm,
+					AppName:      appInfo.HelmInfo.Name,
+					OrgID:        os.Getenv("HOSSTED_ORG_ID"),
+					ClusterUUID:  instance.Status.ClusterUUID,
+					AppUUID:      appInfo.HelmInfo.AppUUID,
+					Type:         "k8s",
+					HosstedHelm:  appInfo.HelmInfo.HosstedHelm,
+					OptionsState: osstate,
 				},
 				AppInfo: appInfo,
 			}
@@ -779,6 +811,8 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 		}
 	}
 
+	fmt.Println(access.URLs)
+
 	// log.Printf("access info object %v", access)
 
 	if len(access.URLs) == 0 {
@@ -791,7 +825,6 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 
 // getCustomIngressName checks if 'custom-values-holder' ConfigMap has a custom ingress name
 func (r *HosstedProjectReconciler) getCustomIngressName(ctx context.Context, namespace string) (string, error) {
-
 	// Fetch ConfigMap
 	log.Println("Fetching ConfigMap 'custom-values-holder'", "namespace", namespace)
 	cm := v1.ConfigMap{}
@@ -809,7 +842,7 @@ func (r *HosstedProjectReconciler) getCustomIngressName(ctx context.Context, nam
 	}
 	log.Println("ConfigMap 'custom-values-holder' fetched successfully", "data", cm.Data)
 
-	// Check for "hosstedCustomIngressName" in custom-values.json
+	// Check for "custom-values.json" in ConfigMap data
 	jsonString, ok := cm.Data["custom-values.json"]
 	if !ok {
 		log.Printf("'custom-values.json' not found in ConfigMap data")
@@ -818,7 +851,8 @@ func (r *HosstedProjectReconciler) getCustomIngressName(ctx context.Context, nam
 
 	log.Print("'custom-values.json' found in ConfigMap data", "jsonString", jsonString)
 
-	var data map[string][]string
+	// Unmarshal into a generic map
+	var data map[string]interface{}
 	err = json.Unmarshal([]byte(jsonString), &data)
 	if err != nil {
 		log.Println(err, "Failed to unmarshal 'custom-values.json'")
@@ -827,15 +861,30 @@ func (r *HosstedProjectReconciler) getCustomIngressName(ctx context.Context, nam
 	log.Print("Successfully unmarshalled 'custom-values.json'", "data", data)
 
 	// Access the ingress name if present
-	ingressNames, exists := data["hosstedCustomIngressName"]
-	if !exists || len(ingressNames) == 0 {
-		log.Println("'hosstedCustomIngressName' not found or empty in 'custom-values.json'")
-		return "", nil // No custom ingress name found
+	value, exists := data["hosstedCustomIngressName"]
+	if !exists {
+		log.Println("'hosstedCustomIngressName' not found in 'custom-values.json'")
+		return "", nil // Key not found, no custom ingress name
 	}
 
-	customIngressName := ingressNames[0]
-	log.Println("Custom ingress name found", "customIngressName", customIngressName)
-	return customIngressName, nil
+	// Handle different types for 'hosstedCustomIngressName'
+	switch v := value.(type) {
+	case string:
+		log.Println("Custom ingress name found as string", "customIngressName", v)
+		return v, nil
+	case []interface{}:
+		if len(v) > 0 {
+			if name, ok := v[0].(string); ok {
+				log.Println("Custom ingress name found in slice", "customIngressName", name)
+				return name, nil
+			}
+		}
+		log.Println("'hosstedCustomIngressName' slice is empty or not a string")
+		return "", nil
+	default:
+		log.Println("Unhandled type for 'hosstedCustomIngressName'", "type", fmt.Sprintf("%T", v))
+		return "", fmt.Errorf("unsupported type for hosstedCustomIngressName: %T", v)
+	}
 }
 
 // getDns retrieves ingress and returns DnsInfo
@@ -1015,14 +1064,19 @@ func searchForTextInFile(fileContent, searchText string) (string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(fileContent))
 	for scanner.Scan() {
 		line := scanner.Text()
-		// Check if the line contains the search text
+		// Handle key-value pairs with '='
+		if strings.Contains(line, searchText+" =") {
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				return strings.TrimSpace(parts[1]), nil
+			}
+		}
+		// Handle CLI-style arguments
 		if strings.Contains(line, searchText) {
-			// Extract the value after the search text
-			// Example: "--username hossted-admin" -> "hossted-admin"
-			parts := strings.Fields(line) // Split line into fields
+			parts := strings.Fields(line) // Split the line into fields
 			for i, part := range parts {
 				if part == searchText && i+1 < len(parts) {
-					return parts[i+1], nil // Return the next field
+					return parts[i+1], nil // Return the value next to the searchText
 				}
 			}
 		}
