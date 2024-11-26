@@ -20,9 +20,6 @@ env:
 customValuesHolder:
   grafana_product_name: rabbitmq
 
-  # hosstedCustomIngressName:
-  #   - hossted-argocd-server
-
 replicas: 1
 
 secret:

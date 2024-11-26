@@ -357,13 +357,13 @@ func (r *HosstedProjectReconciler) getGrafanaProductName(ctx context.Context) (s
 	err = json.Unmarshal([]byte(jsonString), &data)
 	if err != nil {
 		log.Println(err, "Failed to unmarshal 'custom-values.json'")
-		return "", fmt.Errorf("failed to unmarshal custom-values.json: %w", err)
+		return "", fmt.Errorf("failed to unmarshal grafana product code custom-values.json: %w", err)
 	}
 	log.Print("Successfully unmarshalled 'custom-values.json'", "data", data)
 
 	// Access the ingress name if present
 	grafana_product_name, exists := data["grafana_product_name"]
-	if !exists || len(grafana_product_name) == 0 {
+	if !exists {
 		log.Println("'grafana_product_name' not found or empty in 'custom-values.json'")
 		return "", nil // No custom ingress name found
 	}
