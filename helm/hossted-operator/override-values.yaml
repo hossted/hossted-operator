@@ -10,12 +10,16 @@ env:
   MIMIR_PASSWORD: ""
   MIMIR_URL: ""
   MIMIR_USERNAME: ""
-  CLOUD_PROVIDER: "azure"
+  CLOUD_PROVIDER: "placeholder"
   MARKET_PLACE: "enabled"
   PRODUCT_CODE: "5e3lv67alg3wd65pspyfuunxm"
   AWS_REGION: "us-east-1"
   HOSSTED_TOKEN: ""
   HOSSTED_USER_ID: ""
+
+customValuesHolder: {}
+  # hosstedCustomIngressName:
+  #   - hossted-argocd-server
 
 replicas: 1
 
@@ -41,33 +45,32 @@ operator:
     tag: edge
 
 primaryCreds:
-  namespace: "hossted-superset"
+  namespace: "hossted-rabbitmq"
   user: 
     type: "file"
-    text: "--username"
-    key: "superset_init.sh"
-    secretName: "hossted-superset-config"
+    text: "default_user"
+    key: "rabbitmq.conf"
+    secretName: "hossted-rabbitmq-config"
   password: 
-    type: "file"
-    text: "--password"
-    key: "superset_init.sh"
-    secretName: "hossted-superset-config"
+    key: "rabbitmq-password"
+    secretName: "hossted-rabbitmq"
 
 helm:
-  - releaseName: "hossted-superset"
-    namespace: "hossted-superset"
+  - releaseName: "hossted-rabbitmq"
+    namespace: "hossted-rabbitmq"
     values: 
       - "ingress.enabled=true"
-      - "ingress.hosts[0]=superset.f.hossted.app"
+      - "ingress.hostname=rabbitmq.f.hossted.app"
       - "ingress.ingressClassName=hossted-operator"
-      - "init.adminUser.username=hossted-admin"
-      - "init.adminUser.password=hossted-admin-password"
-      - "extraSecretEnv.SUPERSET_SECRET_KEY=hossted-admin-password"
-    repoName: "superset"
-    chartName: "superset"
-    repoUrl: "http://apache.github.io/superset/"
+      - "auth.username=hossted-admin"
+      - "auth.password=hossted-admin-password"
+      - "metrics.serviceMonitor.default.enabled=true"
+      - "metrics.enabled=true"
+    repoName: "rabbitmq"
+    chartName: "rabbitmq"
+    repoUrl: "https://charts.bitnami.com/bitnami"
 
 
 serviceAccount:
   create: true          
-  name: "hossted-superset"
+  name: "hossted-rabbitmq"

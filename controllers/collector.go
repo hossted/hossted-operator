@@ -714,6 +714,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 			if err != nil {
 				return AccessInfo{}, fmt.Errorf("failed to find text '%s' in password Secret: %w", pmc.Password.Text, err)
 			}
+			fmt.Println(string(secretInfo.Data[pmc.Password.Key]), pmc.Password.Text)
 		}
 	} else if pmc.Password.ConfigMap != "" {
 		cmInfo := v1.ConfigMap{}
@@ -1015,14 +1016,19 @@ func searchForTextInFile(fileContent, searchText string) (string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(fileContent))
 	for scanner.Scan() {
 		line := scanner.Text()
-		// Check if the line contains the search text
+		// Handle key-value pairs with '='
+		if strings.Contains(line, searchText+" =") {
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				return strings.TrimSpace(parts[1]), nil
+			}
+		}
+		// Handle CLI-style arguments
 		if strings.Contains(line, searchText) {
-			// Extract the value after the search text
-			// Example: "--username hossted-admin" -> "hossted-admin"
-			parts := strings.Fields(line) // Split line into fields
+			parts := strings.Fields(line) // Split the line into fields
 			for i, part := range parts {
 				if part == searchText && i+1 < len(parts) {
-					return parts[i+1], nil // Return the next field
+					return parts[i+1], nil // Return the value next to the searchText
 				}
 			}
 		}
