@@ -780,6 +780,8 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 		}
 	}
 
+	fmt.Println(access.URLs)
+
 	// log.Printf("access info object %v", access)
 
 	if len(access.URLs) == 0 {

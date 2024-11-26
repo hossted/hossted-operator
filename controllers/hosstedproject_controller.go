@@ -369,7 +369,7 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 			// Install Grafana Agent
 			err = helm.Apply(h)
 			if err != nil {
-				fmt.Println("grafana-allow for monitoring failed %w", err)
+				fmt.Println("grafana-alloy for monitoring failed %w", err)
 			}
 			err = helm.Apply(ksm)
 			if err != nil {
