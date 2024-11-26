@@ -794,7 +794,6 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 
 // getCustomIngressName checks if 'custom-values-holder' ConfigMap has a custom ingress name
 func (r *HosstedProjectReconciler) getCustomIngressName(ctx context.Context, namespace string) (string, error) {
-
 	// Fetch ConfigMap
 	log.Println("Fetching ConfigMap 'custom-values-holder'", "namespace", namespace)
 	cm := v1.ConfigMap{}
@@ -812,7 +811,7 @@ func (r *HosstedProjectReconciler) getCustomIngressName(ctx context.Context, nam
 	}
 	log.Println("ConfigMap 'custom-values-holder' fetched successfully", "data", cm.Data)
 
-	// Check for "hosstedCustomIngressName" in custom-values.json
+	// Check for "custom-values.json" in ConfigMap data
 	jsonString, ok := cm.Data["custom-values.json"]
 	if !ok {
 		log.Printf("'custom-values.json' not found in ConfigMap data")
@@ -821,7 +820,8 @@ func (r *HosstedProjectReconciler) getCustomIngressName(ctx context.Context, nam
 
 	log.Print("'custom-values.json' found in ConfigMap data", "jsonString", jsonString)
 
-	var data map[string][]string
+	// Unmarshal into a generic map
+	var data map[string]interface{}
 	err = json.Unmarshal([]byte(jsonString), &data)
 	if err != nil {
 		log.Println(err, "Failed to unmarshal 'custom-values.json'")
@@ -830,15 +830,30 @@ func (r *HosstedProjectReconciler) getCustomIngressName(ctx context.Context, nam
 	log.Print("Successfully unmarshalled 'custom-values.json'", "data", data)
 
 	// Access the ingress name if present
-	ingressNames, exists := data["hosstedCustomIngressName"]
-	if !exists || len(ingressNames) == 0 {
-		log.Println("'hosstedCustomIngressName' not found or empty in 'custom-values.json'")
-		return "", nil // No custom ingress name found
+	value, exists := data["hosstedCustomIngressName"]
+	if !exists {
+		log.Println("'hosstedCustomIngressName' not found in 'custom-values.json'")
+		return "", nil // Key not found, no custom ingress name
 	}
 
-	customIngressName := ingressNames[0]
-	log.Println("Custom ingress name found", "customIngressName", customIngressName)
-	return customIngressName, nil
+	// Handle different types for 'hosstedCustomIngressName'
+	switch v := value.(type) {
+	case string:
+		log.Println("Custom ingress name found as string", "customIngressName", v)
+		return v, nil
+	case []interface{}:
+		if len(v) > 0 {
+			if name, ok := v[0].(string); ok {
+				log.Println("Custom ingress name found in slice", "customIngressName", name)
+				return name, nil
+			}
+		}
+		log.Println("'hosstedCustomIngressName' slice is empty or not a string")
+		return "", nil
+	default:
+		log.Println("Unhandled type for 'hosstedCustomIngressName'", "type", fmt.Sprintf("%T", v))
+		return "", fmt.Errorf("unsupported type for hosstedCustomIngressName: %T", v)
+	}
 }
 
 // getDns retrieves ingress and returns DnsInfo
