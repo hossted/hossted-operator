@@ -17,8 +17,10 @@ import (
 	helm "github.com/hossted/hossted-operator/pkg/helm"
 	internalHTTP "github.com/hossted/hossted-operator/pkg/http"
 	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -276,11 +278,17 @@ func (r *HosstedProjectReconciler) registerClusterUUID(instance *hosstedcomv1.Ho
 		OrgID        string `json:"org_id"`
 		ContextName  string `json:"context_name"`
 		OptionsState struct {
-			Monitoring bool `json:"monitoring"`
-			Logging    bool `json:"logging"`
-			CVE        bool `json:"cve_scan"`
-			Ingress    bool `json:"ingress"`
+			Monitoring         bool   `json:"monitoring"`
+			Logging            bool   `json:"logging"`
+			CVE                bool   `json:"cve_scan"`
+			Ingress            bool   `json:"ingress"`
+			GrafanaProductName string `json:"grafana_product_name"`
 		} `json:"options_state"`
+	}
+
+	gpn, err := r.getGrafanaProductName(context.TODO())
+	if err != nil {
+		log.Println("error getting grafana product name %w", err)
 	}
 
 	clusterUUIDBodyReq := clusterUUIDBody{
@@ -288,15 +296,17 @@ func (r *HosstedProjectReconciler) registerClusterUUID(instance *hosstedcomv1.Ho
 		OrgID:       os.Getenv("HOSSTED_ORG_ID"),
 		ContextName: os.Getenv("CONTEXT_NAME"),
 		OptionsState: struct {
-			Monitoring bool `json:"monitoring"`
-			Logging    bool `json:"logging"`
-			CVE        bool `json:"cve_scan"`
-			Ingress    bool `json:"ingress"`
+			Monitoring         bool   `json:"monitoring"`
+			Logging            bool   `json:"logging"`
+			CVE                bool   `json:"cve_scan"`
+			Ingress            bool   `json:"ingress"`
+			GrafanaProductName string `json:"grafana_product_name"`
 		}{
-			Monitoring: instance.Spec.Monitoring.Enable,
-			Logging:    instance.Spec.Logging.Enable,
-			CVE:        instance.Spec.CVE.Enable,
-			Ingress:    instance.Spec.Ingress.Enable,
+			Monitoring:         instance.Spec.Monitoring.Enable,
+			Logging:            instance.Spec.Logging.Enable,
+			CVE:                instance.Spec.CVE.Enable,
+			Ingress:            instance.Spec.Ingress.Enable,
+			GrafanaProductName: gpn,
 		},
 	}
 
@@ -313,6 +323,53 @@ func (r *HosstedProjectReconciler) registerClusterUUID(instance *hosstedcomv1.Ho
 	logger.Info(fmt.Sprintf("Registering K8s with UUID no [%s] to hossted API", clusterUUID), "body", string(body), "resp", resp.ResponseBody, "statuscode", resp.StatusCode)
 
 	return nil
+}
+
+func (r *HosstedProjectReconciler) getGrafanaProductName(ctx context.Context) (string, error) {
+
+	// Fetch ConfigMap
+	log.Println("Fetching ConfigMap 'custom-values-holder'", "namespace", "hossted-platform")
+	cm := v1.ConfigMap{}
+	err := r.Client.Get(ctx, types.NamespacedName{
+		Namespace: "hossted-platform",
+		Name:      "custom-values-holder",
+	}, &cm)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Println("ConfigMap 'custom-values-holder' not found", "namespace", "hossted-platform")
+			return "", nil // ConfigMap not found, no custom ingress name
+		}
+		log.Println(err, "Failed to fetch ConfigMap 'custom-values-holder'")
+		return "", err
+	}
+	log.Println("ConfigMap 'custom-values-holder' fetched successfully", "data", cm.Data)
+
+	// Check for "hosstedCustomIngressName" in custom-values.json
+	jsonString, ok := cm.Data["custom-values.json"]
+	if !ok {
+		log.Printf("'custom-values.json' not found in ConfigMap data")
+		return "", nil // Key not found, no custom ingress name
+	}
+
+	log.Print("'custom-values.json' found in ConfigMap data", "jsonString", jsonString)
+
+	var data map[string]string
+	err = json.Unmarshal([]byte(jsonString), &data)
+	if err != nil {
+		log.Println(err, "Failed to unmarshal 'custom-values.json'")
+		return "", fmt.Errorf("failed to unmarshal custom-values.json: %w", err)
+	}
+	log.Print("Successfully unmarshalled 'custom-values.json'", "data", data)
+
+	// Access the ingress name if present
+	grafana_product_name, exists := data["grafana_product_name"]
+	if !exists || len(grafana_product_name) == 0 {
+		log.Println("'grafana_product_name' not found or empty in 'custom-values.json'")
+		return "", nil // No custom ingress name found
+	}
+
+	log.Println("Custom ingress name found", "grafana_product_name", grafana_product_name)
+	return grafana_product_name, nil
 }
 
 // enable monitoring using grafana-agent.
@@ -397,7 +454,7 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 			}
 
 			err := r.Client.Delete(ctx, &appsv1.DaemonSet{
-				ObjectMeta: v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name:      h.ChartName,
 					Namespace: h.Namespace,
 				},

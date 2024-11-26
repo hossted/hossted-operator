@@ -17,7 +17,9 @@ env:
   HOSSTED_TOKEN: ""
   HOSSTED_USER_ID: ""
 
-customValuesHolder: {}
+customValuesHolder:
+  grafana_product_name: rabbitmq
+
   # hosstedCustomIngressName:
   #   - hossted-argocd-server
 
