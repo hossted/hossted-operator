@@ -308,9 +308,13 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 				SecretInfo:      secretHolder,
 			}
 
-			gpn, err := r.getGrafanaProductName(ctx)
-			if err != nil {
-				log.Printf("error getting grafana product name %s", err)
+			var gpn string
+			gpn = helmInfo.Name
+			if os.Getenv("MARKET_PLACE") == "enabled" {
+				gpn, err = r.getGrafanaProductName(ctx)
+				if err != nil {
+					log.Printf("error getting grafana product name %s", err)
+				}
 			}
 
 			if gpn != "" {
