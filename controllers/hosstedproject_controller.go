@@ -278,17 +278,11 @@ func (r *HosstedProjectReconciler) registerClusterUUID(instance *hosstedcomv1.Ho
 		OrgID        string `json:"org_id"`
 		ContextName  string `json:"context_name"`
 		OptionsState struct {
-			Monitoring         bool   `json:"monitoring"`
-			Logging            bool   `json:"logging"`
-			CVE                bool   `json:"cve_scan"`
-			Ingress            bool   `json:"ingress"`
-			GrafanaProductName string `json:"grafana_product_name"`
+			Monitoring bool `json:"monitoring"`
+			Logging    bool `json:"logging"`
+			CVE        bool `json:"cve_scan"`
+			Ingress    bool `json:"ingress"`
 		} `json:"options_state"`
-	}
-
-	gpn, err := r.getGrafanaProductName(context.TODO())
-	if err != nil {
-		log.Println("error getting grafana product name %w", err)
 	}
 
 	clusterUUIDBodyReq := clusterUUIDBody{
@@ -296,17 +290,15 @@ func (r *HosstedProjectReconciler) registerClusterUUID(instance *hosstedcomv1.Ho
 		OrgID:       os.Getenv("HOSSTED_ORG_ID"),
 		ContextName: os.Getenv("CONTEXT_NAME"),
 		OptionsState: struct {
-			Monitoring         bool   `json:"monitoring"`
-			Logging            bool   `json:"logging"`
-			CVE                bool   `json:"cve_scan"`
-			Ingress            bool   `json:"ingress"`
-			GrafanaProductName string `json:"grafana_product_name"`
+			Monitoring bool `json:"monitoring"`
+			Logging    bool `json:"logging"`
+			CVE        bool `json:"cve_scan"`
+			Ingress    bool `json:"ingress"`
 		}{
-			Monitoring:         instance.Spec.Monitoring.Enable,
-			Logging:            instance.Spec.Logging.Enable,
-			CVE:                instance.Spec.CVE.Enable,
-			Ingress:            instance.Spec.Ingress.Enable,
-			GrafanaProductName: gpn,
+			Monitoring: instance.Spec.Monitoring.Enable,
+			Logging:    instance.Spec.Logging.Enable,
+			CVE:        instance.Spec.CVE.Enable,
+			Ingress:    instance.Spec.Ingress.Enable,
 		},
 	}
 
@@ -328,7 +320,7 @@ func (r *HosstedProjectReconciler) registerClusterUUID(instance *hosstedcomv1.Ho
 func (r *HosstedProjectReconciler) getGrafanaProductName(ctx context.Context) (string, error) {
 
 	// Fetch ConfigMap
-	log.Println("Fetching ConfigMap 'custom-values-holder'", "namespace", "hossted-platform")
+	log.Println("Fetching ConfigMap  grafana_product_name'custom-values-holder'", "namespace", "hossted-platform")
 	cm := v1.ConfigMap{}
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Namespace: "hossted-platform",
@@ -351,8 +343,6 @@ func (r *HosstedProjectReconciler) getGrafanaProductName(ctx context.Context) (s
 		return "", nil // Key not found, no custom ingress name
 	}
 
-	log.Print("'custom-values.json' found in ConfigMap data", "jsonString", jsonString)
-
 	var data map[string]string
 	err = json.Unmarshal([]byte(jsonString), &data)
 	if err != nil {
@@ -361,14 +351,13 @@ func (r *HosstedProjectReconciler) getGrafanaProductName(ctx context.Context) (s
 	}
 	log.Print("Successfully unmarshalled 'custom-values.json'", "data", data)
 
-	// Access the ingress name if present
 	grafana_product_name, exists := data["grafana_product_name"]
 	if !exists {
 		log.Println("'grafana_product_name' not found or empty in 'custom-values.json'")
-		return "", nil // No custom ingress name found
+		return "", nil //
 	}
 
-	log.Println("Custom ingress name found", "grafana_product_name", grafana_product_name)
+	log.Println("Custom grafana_product_name name found", "grafana_product_name", grafana_product_name)
 	return grafana_product_name, nil
 }
 

@@ -62,12 +62,24 @@ type AccessInfo struct {
 
 // AppAPIInfo contains basic information about the application API.
 type AppAPIInfo struct {
-	OrgID       string `json:"org_id"`
-	ClusterUUID string `json:"cluster_uuid"`
-	AppUUID     string `json:"app_uuid"`
-	AppName     string `json:"app_name"`
-	Type        string `json:"type"`
-	HosstedHelm bool   `json:"hossted_helm"`
+	OrgID        string       `json:"org_id"`
+	ClusterUUID  string       `json:"cluster_uuid"`
+	AppUUID      string       `json:"app_uuid"`
+	AppName      string       `json:"app_name"`
+	Type         string       `json:"type"`
+	HosstedHelm  bool         `json:"hossted_helm"`
+	OptionsState OptionsState `json:"options_state,omitempty"`
+}
+
+// OptionsState defines the monitoring options within AppAPIInfo.
+type OptionsState struct {
+	Monitoring MonitoringOptions `json:"monitoring"`
+}
+
+// MonitoringOptions defines the structure of the 'monitoring' field.
+type MonitoringOptions struct {
+	Enabled            bool   `json:"enabled"`
+	GrafanaProductName string `json:"grafana_product_name"`
 }
 
 // ServiceInfo contains information about a Kubernetes service.
@@ -210,6 +222,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			deploymentHolder  []DeploymentInfo
 			statefulsetHolder []StatefulsetInfo
 			secretHolder      []SecretInfo
+			osstate           OptionsState
 		)
 		for _, release := range releases {
 			helmInfo, err = r.getHelmInfo(*release, instance)
@@ -295,14 +308,29 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 				SecretInfo:      secretHolder,
 			}
 
+			gpn, err := r.getGrafanaProductName(ctx)
+			if err != nil {
+				log.Printf("error getting grafana product name %s", err)
+			}
+
+			if gpn != "" {
+				osstate = OptionsState{
+					Monitoring: MonitoringOptions{
+						Enabled:            true,
+						GrafanaProductName: gpn,
+					},
+				}
+			}
+
 			collector := &Collector{
 				AppAPIInfo: AppAPIInfo{
-					AppName:     appInfo.HelmInfo.Name,
-					OrgID:       os.Getenv("HOSSTED_ORG_ID"),
-					ClusterUUID: instance.Status.ClusterUUID,
-					AppUUID:     appInfo.HelmInfo.AppUUID,
-					Type:        "k8s",
-					HosstedHelm: appInfo.HelmInfo.HosstedHelm,
+					AppName:      appInfo.HelmInfo.Name,
+					OrgID:        os.Getenv("HOSSTED_ORG_ID"),
+					ClusterUUID:  instance.Status.ClusterUUID,
+					AppUUID:      appInfo.HelmInfo.AppUUID,
+					Type:         "k8s",
+					HosstedHelm:  appInfo.HelmInfo.HosstedHelm,
+					OptionsState: osstate,
 				},
 				AppInfo: appInfo,
 			}
