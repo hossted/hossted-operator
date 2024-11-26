@@ -404,7 +404,7 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 	// Check if monitoring is enabled
 	if instance.Spec.Monitoring.Enable {
 		// Check if Grafana Agent release already exists
-		ok, err := helm.ListRelease(h.ChartName, h.Namespace)
+		ok, err := helm.ListRelease(h.ChartName, "hossted-platform")
 		if err != nil {
 			return err
 		}

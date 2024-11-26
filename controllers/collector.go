@@ -742,7 +742,6 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 			if err != nil {
 				return AccessInfo{}, fmt.Errorf("failed to find text '%s' in password Secret: %w", pmc.Password.Text, err)
 			}
-			fmt.Println(string(secretInfo.Data[pmc.Password.Key]), pmc.Password.Text)
 		}
 	} else if pmc.Password.ConfigMap != "" {
 		cmInfo := v1.ConfigMap{}
