@@ -19,9 +19,10 @@ import (
 	helm "github.com/hossted/hossted-operator/pkg/helm"
 	internalHTTP "github.com/hossted/hossted-operator/pkg/http"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -318,6 +319,50 @@ func (r *HosstedProjectReconciler) registerClusterUUID(instance *hosstedcomv1.Ho
 	return nil
 }
 
+func (r *HosstedProjectReconciler) getGrafanaProductName(ctx context.Context) (string, error) {
+
+	// Fetch ConfigMap
+	log.Println("Fetching ConfigMap  grafana_product_name'custom-values-holder'", "namespace", "hossted-platform")
+	cm := v1.ConfigMap{}
+	err := r.Client.Get(ctx, types.NamespacedName{
+		Namespace: "hossted-platform",
+		Name:      "custom-values-holder",
+	}, &cm)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Println("ConfigMap 'custom-values-holder' not found", "namespace", "hossted-platform")
+			return "", nil // ConfigMap not found, no custom ingress name
+		}
+		log.Println(err, "Failed to fetch ConfigMap 'custom-values-holder'")
+		return "", err
+	}
+	log.Println("ConfigMap 'custom-values-holder' fetched successfully", "data", cm.Data)
+
+	// Check for "hosstedCustomIngressName" in custom-values.json
+	jsonString, ok := cm.Data["custom-values.json"]
+	if !ok {
+		log.Printf("'custom-values.json' not found in ConfigMap data")
+		return "", nil // Key not found, no custom ingress name
+	}
+
+	var data map[string]string
+	err = json.Unmarshal([]byte(jsonString), &data)
+	if err != nil {
+		log.Println(err, "Failed to unmarshal 'custom-values.json'")
+		return "", fmt.Errorf("failed to unmarshal grafana product code custom-values.json: %w", err)
+	}
+	log.Print("Successfully unmarshalled 'custom-values.json'", "data", data)
+
+	grafana_product_name, exists := data["grafana_product_name"]
+	if !exists {
+		log.Println("'grafana_product_name' not found or empty in 'custom-values.json'")
+		return "", nil //
+	}
+
+	log.Println("Custom grafana_product_name name found", "grafana_product_name", grafana_product_name)
+	return grafana_product_name, nil
+}
+
 // enable monitoring using grafana-agent.
 func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instance *hosstedcomv1.Hosstedproject) error {
 	// Helm configuration for Grafana Agent
@@ -359,7 +404,7 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 	// Check if monitoring is enabled
 	if instance.Spec.Monitoring.Enable {
 		// Check if Grafana Agent release already exists
-		ok, err := helm.ListRelease("hossted-grafana-alloy", h.Namespace)
+		ok, err := helm.ListRelease(h.ChartName, "hossted-platform")
 		if err != nil {
 			return err
 		}
@@ -376,7 +421,7 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 
 			err = helm.Apply(h)
 			if err != nil {
-				fmt.Println("grafana alloy for monitoring failed %w", err)
+				fmt.Println("grafana-alloy for monitoring failed %w", err)
 			}
 			err = helm.Apply(ksm)
 			if err != nil {
@@ -404,7 +449,7 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 			}
 
 			err := r.Client.Delete(ctx, &appsv1.DaemonSet{
-				ObjectMeta: v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name:      h.ChartName,
 					Namespace: h.Namespace,
 				},
