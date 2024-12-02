@@ -1,9 +1,8 @@
 env:
   HOSSTED_API_URL: "https://api.hossted.com/v1/instances"
+  EMAIL_ID: ""
   RECONCILE_DURATION: "10s"
-  HOSSTED_ORG_ID: "123-123-123-123"
-  HOSSTED_TOKEN: ""
-  HOSSTED_USER_ID: ""
+  HOSSTED_ORG_ID: ""
   CONTEXT_NAME: ""
   LOKI_PASSWORD: ""
   LOKI_URL: ""
@@ -11,45 +10,63 @@ env:
   MIMIR_PASSWORD: ""
   MIMIR_URL: ""
   MIMIR_USERNAME: ""
-  CLOUD_PROVIDER: ""
-  PRODUCT_CODE: ""
-  AWS_REGION: ""
-  MARKET_PLACE: ""
+  CLOUD_PROVIDER: "azure"
+  MARKET_PLACE: "enabled"
+  PRODUCT_CODE: "64563"
+  AWS_REGION: "us-east-1"
+  HOSSTED_TOKEN: ""
+  HOSSTED_USER_ID: ""
 
 replicas: 1
 
 secret:
-  HOSSTED_AUTH_TOKEN: ""
+  HOSSTED_AUTH_TOKEN: "notoken"
 
-stop: false
+stop: true
 
 cve:
-  enable: true
+  enable: false
 monitoring:
-  enable: true
+  enable: false
 logging:
   enable: false
 ingress:
-  enable: true
-
-serviceAccount:
-  create: false          # Set to true if you want to create a new ServiceAccount
-  name: "my-service-account"   # Specify the name of an existing ServiceAccount
+  enable: false
 
 nameOverride: hossted
 
 operator:
   image:
     repository: hossted/operator
-    tag: 0.6.3
+    tag: edge
+
+primaryCreds:
+  namespace: "hossted-argocd"
+  #TO DO just plain text for user admin
+  password:
+    key: "password"
+    secretName: "argocd-initial-admin-secret"
+
+customValuesHolder:
+  hosstedCustomIngressName:
+    - hossted-argocd-server
 
 helm:
-  - releaseName: "kube-state-metrics"
-    namespace: "ksm"
-    values:  
-      - "selfMonitor.enabled=true"
-    repoName: "grafana"
-    chartName: "kube-state-metrics"
-    repoUrl: "https://prometheus-community.github.io/helm-charts"
+  - releaseName: "hossted-argocd"
+    namespace: "hossted-argocd"
+    values:
+      - "global.domain=argocd.f.hossted.app"
+      - "configs.params.server\\.insecure=true"
+      - "server.ingress.enabled=true"
+      - "server.ingress.hostname=argocd.f.hossted.app"
+      - "server.ingress.ingressClassName=hossted-operator"
+      - "server.ingress.tls=false"
+      - "server.ingress.annotations.nginx\\.ingress\\.kubernetes\\.io/backend-protocol=HTTP"
+    repoName: "argo"
+    chartName: "argo-cd"
+    repoUrl: "https://argoproj.github.io/argo-helm"
 
-primaryCreds: {}
+
+serviceAccount:
+  create: true
+  name: "hossted-argocd"

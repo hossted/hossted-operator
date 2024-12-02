@@ -10,15 +10,12 @@ env:
   MIMIR_PASSWORD: ""
   MIMIR_URL: ""
   MIMIR_USERNAME: ""
-  CLOUD_PROVIDER: "placeholder"
+  CLOUD_PROVIDER: "azure"
   MARKET_PLACE: "enabled"
-  PRODUCT_CODE: "5e3lv67alg3wd65pspyfuunxm"
+  PRODUCT_CODE: "64563"
   AWS_REGION: "us-east-1"
   HOSSTED_TOKEN: ""
   HOSSTED_USER_ID: ""
-
-customValuesHolder:
-  grafana_product_name: rabbitmq
 
 replicas: 1
 
@@ -38,38 +35,43 @@ ingress:
 
 nameOverride: hossted
 
+servicemonitors:
+  create: false
+
 operator:
   image:
     repository: hossted/operator
     tag: edge
 
 primaryCreds:
-  namespace: "hossted-rabbitmq"
+  namespace: "hossted-argocd"
   user: 
-    type: "file"
-    text: "default_user"
-    key: "rabbitmq.conf"
-    secretName: "hossted-rabbitmq-config"
-  password: 
-    key: "rabbitmq-password"
-    secretName: "hossted-rabbitmq"
+    type: "plaintext"
+    text: "admin"
+  password:
+    key: "password"
+    secretName: "argocd-initial-admin-secret"
+
+customValuesHolder:
+  hosstedCustomIngressName:
+    - hossted-argocd-server
 
 helm:
-  - releaseName: "hossted-rabbitmq"
-    namespace: "hossted-rabbitmq"
-    values: 
-      - "ingress.enabled=true"
-      - "ingress.hostname=rabbitmq.f.hossted.app"
-      - "ingress.ingressClassName=hossted-operator"
-      - "auth.username=hossted-admin"
-      - "auth.password=hossted-admin-password"
-      - "metrics.serviceMonitor.default.enabled=true"
-      - "metrics.enabled=true"
-    repoName: "rabbitmq"
-    chartName: "rabbitmq"
-    repoUrl: "https://charts.bitnami.com/bitnami"
+  - releaseName: "hossted-argocd"
+    namespace: "hossted-argocd"
+    values:
+      - "global.domain=argocd.f.hossted.app"
+      - "configs.params.server\\.insecure=true"
+      - "server.ingress.enabled=true"
+      - "server.ingress.hostname=argocd.f.hossted.app"
+      - "server.ingress.ingressClassName=hossted-operator"
+      - "server.ingress.tls=false"
+      - "server.ingress.annotations.nginx\\.ingress\\.kubernetes\\.io/backend-protocol=HTTP"
+    repoName: "argo"
+    chartName: "argo-cd"
+    repoUrl: "https://argoproj.github.io/argo-helm"
 
 
 serviceAccount:
-  create: true          
-  name: "hossted-rabbitmq"
+  create: true
+  name: "hossted-argocd"
