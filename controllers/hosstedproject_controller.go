@@ -344,6 +344,8 @@ func (r *HosstedProjectReconciler) getGrafanaProductName(ctx context.Context) (s
 		return "", nil // Key not found, no custom ingress name
 	}
 
+	fmt.Println(jsonString)
+
 	var data map[string]string
 	err = json.Unmarshal([]byte(jsonString), &data)
 	if err != nil {
