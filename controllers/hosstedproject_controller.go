@@ -20,7 +20,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -321,45 +320,49 @@ func (r *HosstedProjectReconciler) registerClusterUUID(instance *hosstedcomv1.Ho
 func (r *HosstedProjectReconciler) getGrafanaProductName(ctx context.Context) (string, error) {
 
 	// Fetch ConfigMap
-	log.Println("Fetching ConfigMap  grafana_product_name'custom-values-holder'", "namespace", "hossted-platform")
+	log.Println("Fetching ConfigMap 'custom-values-holder'", "namespace", "hossted-platform")
 	cm := v1.ConfigMap{}
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Namespace: "hossted-platform",
 		Name:      "custom-values-holder",
 	}, &cm)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
+		if errors.IsNotFound(err) {
 			log.Println("ConfigMap 'custom-values-holder' not found", "namespace", "hossted-platform")
 			return "", nil // ConfigMap not found, no custom ingress name
 		}
-		log.Println(err, "Failed to fetch ConfigMap 'custom-values-holder'")
+		log.Println("Failed to fetch ConfigMap 'custom-values-holder':", err)
 		return "", err
 	}
 	log.Println("ConfigMap 'custom-values-holder' fetched successfully", "data", cm.Data)
 
-	// Check for "hosstedCustomIngressName" in custom-values.json
+	// Check for "custom-values.json" in the ConfigMap data
 	jsonString, ok := cm.Data["custom-values.json"]
 	if !ok {
-		log.Printf("'custom-values.json' not found in ConfigMap data")
+		log.Println("'custom-values.json' not found in ConfigMap data")
 		return "", nil // Key not found, no custom ingress name
 	}
 
-	var data map[string]string
+	log.Printf("custom-values.json content: %s", jsonString)
+
+	// Use map[string]interface{} to handle mixed data types
+	var data map[string]interface{}
 	err = json.Unmarshal([]byte(jsonString), &data)
 	if err != nil {
-		log.Println(err, "Failed to unmarshal 'custom-values.json'")
-		return "", fmt.Errorf("failed to unmarshal grafana product code custom-values.json: %w", err)
+		log.Println("Failed to unmarshal 'custom-values.json':", err)
+		return "", fmt.Errorf("failed to unmarshal custom-values.json: %w", err)
 	}
-	log.Print("Successfully unmarshalled 'custom-values.json'", "data", data)
+	log.Printf("Successfully unmarshalled 'custom-values.json': %+v", data)
 
-	grafana_product_name, exists := data["grafana_product_name"]
-	if !exists {
+	// Extract 'grafana_product_name' and ensure it's a string
+	grafanaProductName, exists := data["grafana_product_name"].(string)
+	if !exists || grafanaProductName == "" {
 		log.Println("'grafana_product_name' not found or empty in 'custom-values.json'")
-		return "", nil //
+		return "", nil // Key not found or empty
 	}
 
-	log.Println("Custom grafana_product_name name found", "grafana_product_name", grafana_product_name)
-	return grafana_product_name, nil
+	log.Printf("Custom grafana_product_name found: %s", grafanaProductName)
+	return grafanaProductName, nil
 }
 
 // enable monitoring using grafana-agent.
