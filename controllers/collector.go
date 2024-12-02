@@ -318,11 +318,15 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 			}
 
 			if gpn != "" {
-				osstate = OptionsState{
-					Monitoring: MonitoringOptions{
-						Enabled:            true,
-						GrafanaProductName: gpn,
-					},
+				appNameWithoutPrefix := strings.TrimPrefix(appInfo.HelmInfo.Name, "hossted-")
+				log.Printf("Found grafana product name. Original HelmInfo.Name: %s, Trimmed Name: %s, Comparing with: %s", appInfo.HelmInfo.Name, appNameWithoutPrefix, gpn)
+				if appNameWithoutPrefix == gpn {
+					osstate = OptionsState{
+						Monitoring: MonitoringOptions{
+							Enabled:            true,
+							GrafanaProductName: gpn,
+						},
+					}
 				}
 			}
 
