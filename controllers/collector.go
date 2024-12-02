@@ -717,12 +717,15 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 		if err != nil {
 			return AccessInfo{}, fmt.Errorf("failed to get user Secret: %w", err)
 		}
-		// Check if the user type is "text", if so, search for the value in the file
+
+		// Check if the user type is "file", if so, search for the value in the file
 		if pmc.User.Type == "file" {
 			user, err = searchForTextInFile(string(secretInfo.Data[pmc.User.Key]), pmc.User.Text)
 			if err != nil {
 				return AccessInfo{}, fmt.Errorf("failed to find text '%s' in user Secret: %w", pmc.User.Text, err)
 			}
+		} else if pmc.User.Type == "plaintext" {
+			user = pmc.User.Text
 		} else {
 			user = string(secretInfo.Data[pmc.User.Key])
 		}
@@ -746,6 +749,8 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 			if err != nil {
 				return AccessInfo{}, fmt.Errorf("failed to find text '%s' in password Secret: %w", pmc.Password.Text, err)
 			}
+		} else if pmc.Password.Type == "plaintext" {
+			password = pmc.Password.Text
 		}
 	} else if pmc.Password.ConfigMap != "" {
 		cmInfo := v1.ConfigMap{}
@@ -811,7 +816,7 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 		}
 	}
 
-	fmt.Println(access.URLs)
+	fmt.Println(access)
 
 	// log.Printf("access info object %v", access)
 
