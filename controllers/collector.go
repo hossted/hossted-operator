@@ -68,6 +68,7 @@ type AppAPIInfo struct {
 	AppName      string       `json:"app_name"`
 	Type         string       `json:"type"`
 	HosstedHelm  bool         `json:"hossted_helm"`
+	HeartBeat    bool         `json:"heart_beat,omitempty"`
 	OptionsState OptionsState `json:"options_state,omitempty"`
 }
 

@@ -92,6 +92,7 @@ func (r *HosstedProjectReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		if err != nil {
 			return ctrl.Result{}, err
 		} else {
+			r.StartPeriodicUpdate(ctx, instance, logger)
 			return ctrl.Result{RequeueAfter: r.ReconcileDuration}, nil
 		}
 	} else {
@@ -596,19 +597,6 @@ func (r *HosstedProjectReconciler) handleVulnReports(ctx context.Context, namesp
 	}
 	return nil
 }
-
-// // handleExistingCluster handles reconciliation for an existing cluster.
-// func (r *HosstedProjectReconciler) registerDns(ctx context.Context, instance *hosstedcomv1.Hosstedproject) {
-// 	dnsrequest, _ := r.getDns(ctx, instance)
-// 	body, _ := json.Marshal(dnsrequest)
-// 	dnsURL := os.Getenv("HOSSTED_API_URL") + "/clusters/dns"
-// 	resp, _ := internalHTTP.HttpRequest(body, dnsURL)
-// 	instance.Status.DnsResponse = resp.StatusCode
-// 	if instance.Status.DnsResponse != 200 || instance.Status.DnsResponse == 0 {
-// 		_ = r.Status().Update(ctx, instance)
-// 	}
-
-// }
 
 func generateConfigMap(uuid, lokiURL, lokiUser, lokiPass, mimirURL, mimirUser, mimirPass string) string {
 	configMapTemplate := `
