@@ -35,6 +35,9 @@ ingress:
 
 nameOverride: hossted
 
+servicemonitors:
+  create: false
+
 operator:
   image:
     repository: hossted/operator
