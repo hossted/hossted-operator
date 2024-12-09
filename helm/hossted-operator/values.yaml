@@ -1,8 +1,9 @@
 env:
   HOSSTED_API_URL: "https://api.hossted.com/v1/instances"
-  EMAIL_ID: ""
   RECONCILE_DURATION: "10s"
-  HOSSTED_ORG_ID: ""
+  HOSSTED_ORG_ID: "123-123-123-123"
+  HOSSTED_TOKEN: ""
+  HOSSTED_USER_ID: ""
   CONTEXT_NAME: ""
   LOKI_PASSWORD: ""
   LOKI_URL: ""
@@ -10,66 +11,48 @@ env:
   MIMIR_PASSWORD: ""
   MIMIR_URL: ""
   MIMIR_USERNAME: ""
-  CLOUD_PROVIDER: "azure"
-  MARKET_PLACE: "enabled"
-  PRODUCT_CODE: "64563"
-  AWS_REGION: "us-east-1"
-  HOSSTED_TOKEN: ""
-  HOSSTED_USER_ID: ""
+  CLOUD_PROVIDER: ""
+  PRODUCT_CODE: ""
+  AWS_REGION: ""
+  MARKET_PLACE: ""
 
 replicas: 1
 
 secret:
-  HOSSTED_AUTH_TOKEN: "notoken"
+  HOSSTED_AUTH_TOKEN: ""
 
-stop: true
+stop: false
 
 cve:
-  enable: false
+  enable: true
 monitoring:
-  enable: false
+  enable: true
 logging:
   enable: false
 ingress:
-  enable: false
+  enable: true
 
-nameOverride: hossted
+serviceAccount:
+  create: false          # Set to true if you want to create a new ServiceAccount
+  name: "my-service-account"   # Specify the name of an existing ServiceAccount
 
 servicemonitors:
   create: false
 
+nameOverride: hossted
+
 operator:
   image:
     repository: hossted/operator
-    tag: edge
-
-primaryCreds:
-  namespace: "hossted-argocd"
-  #TO DO just plain text for user admin
-  password:
-    key: "password"
-    secretName: "argocd-initial-admin-secret"
-
-customValuesHolder:
-  hosstedCustomIngressName:
-    - hossted-argocd-server
+    tag: 0.7.0
 
 helm:
-  - releaseName: "hossted-argocd"
-    namespace: "hossted-argocd"
-    values:
-      - "global.domain=argocd.f.hossted.app"
-      - "configs.params.server\\.insecure=true"
-      - "server.ingress.enabled=true"
-      - "server.ingress.hostname=argocd.f.hossted.app"
-      - "server.ingress.ingressClassName=hossted-operator"
-      - "server.ingress.tls=false"
-      - "server.ingress.annotations.nginx\\.ingress\\.kubernetes\\.io/backend-protocol=HTTP"
-    repoName: "argo"
-    chartName: "argo-cd"
-    repoUrl: "https://argoproj.github.io/argo-helm"
+  - releaseName: "kube-state-metrics"
+    namespace: "ksm"
+    values:  
+      - "selfMonitor.enabled=true"
+    repoName: "grafana"
+    chartName: "kube-state-metrics"
+    repoUrl: "https://prometheus-community.github.io/helm-charts"
 
-
-serviceAccount:
-  create: true
-  name: "hossted-argocd"
+primaryCreds: {}
