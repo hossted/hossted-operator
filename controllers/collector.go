@@ -48,6 +48,7 @@ type AppInfo struct {
 	HelmValueInfo   HelmValueInfo         `json:"helmvalue_info"`
 	SecurityInfo    []SecurityInfo        `json:"security_info"`
 	SecretInfo      []SecretInfo          `json:"secret_info"`
+	OptionsState    OptionsState          `json:"options_state,omitempty"`
 }
 
 type URLInfo struct {
@@ -292,6 +293,34 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 				return nil, nil, nil, err
 			}
 
+			var gpn string
+			gpn = helmInfo.Name
+			if os.Getenv("MARKET_PLACE") == "enabled" {
+				gpn, err = r.getGrafanaProductName(ctx)
+				if err != nil {
+					log.Printf("error getting grafana product name %s", err)
+				}
+			}
+
+			if gpn != "" {
+				appNameWithoutPrefix := strings.TrimPrefix(helmInfo.Name, "hossted-")
+				log.Printf("Found grafana product name. Original HelmInfo.Name: %s, Trimmed Name: %s, Comparing with: %s", helmInfo.Name, appNameWithoutPrefix, gpn)
+				if appNameWithoutPrefix == gpn {
+					osstate = OptionsState{
+						Monitoring: MonitoringOptions{
+							Enabled:            true,
+							GrafanaProductName: gpn,
+						},
+					}
+				} else {
+					osstate = OptionsState{
+						Monitoring: MonitoringOptions{
+							Enabled: true,
+						},
+					}
+				}
+			}
+
 			// After collecting all HelmInfo structs for this iteration, assign to instance.Status.HelmStatus
 			appInfo := AppInfo{
 				HelmInfo:        helmInfo,
@@ -306,39 +335,18 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 				HelmValueInfo:   helmvalueHolder,
 				SecurityInfo:    securityHolder,
 				SecretInfo:      secretHolder,
-			}
-
-			var gpn string
-			gpn = helmInfo.Name
-			if os.Getenv("MARKET_PLACE") == "enabled" {
-				gpn, err = r.getGrafanaProductName(ctx)
-				if err != nil {
-					log.Printf("error getting grafana product name %s", err)
-				}
-			}
-
-			if gpn != "" {
-				appNameWithoutPrefix := strings.TrimPrefix(appInfo.HelmInfo.Name, "hossted-")
-				log.Printf("Found grafana product name. Original HelmInfo.Name: %s, Trimmed Name: %s, Comparing with: %s", appInfo.HelmInfo.Name, appNameWithoutPrefix, gpn)
-				if appNameWithoutPrefix == gpn {
-					osstate = OptionsState{
-						Monitoring: MonitoringOptions{
-							Enabled:            true,
-							GrafanaProductName: gpn,
-						},
-					}
-				}
+				OptionsState:    osstate,
 			}
 
 			collector := &Collector{
 				AppAPIInfo: AppAPIInfo{
-					AppName:      appInfo.HelmInfo.Name,
-					OrgID:        os.Getenv("HOSSTED_ORG_ID"),
-					ClusterUUID:  instance.Status.ClusterUUID,
-					AppUUID:      appInfo.HelmInfo.AppUUID,
-					Type:         "k8s",
-					HosstedHelm:  appInfo.HelmInfo.HosstedHelm,
-					OptionsState: osstate,
+					AppName:     appInfo.HelmInfo.Name,
+					OrgID:       os.Getenv("HOSSTED_ORG_ID"),
+					ClusterUUID: instance.Status.ClusterUUID,
+					AppUUID:     appInfo.HelmInfo.AppUUID,
+					Type:        "k8s",
+					HosstedHelm: appInfo.HelmInfo.HosstedHelm,
+					//OptionsState: osstate,
 				},
 				AppInfo: appInfo,
 			}

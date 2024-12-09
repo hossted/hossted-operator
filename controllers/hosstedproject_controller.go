@@ -389,6 +389,7 @@ func (r *HosstedProjectReconciler) handleMonitoring(ctx context.Context, instanc
 		Namespace:   "hossted-platform",
 		Values: []string{
 			"alloy.configMap.create=" + "false",
+			"alloy.mounts.varlog=" + "true",
 		},
 	}
 
