@@ -287,7 +287,7 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 
 			revisions = append(revisions, helmInfo.Revision)
 
-			accessInfo, err := r.getAccessInfo(ctx)
+			accessInfo, err := r.getAccessInfo(ctx, ns)
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -675,7 +675,7 @@ func isHostedHelm(release helmrelease.Release) bool {
 	}
 }
 
-func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInfo, error) {
+func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context, ns string) (AccessInfo, error) {
 	cm := v1.ConfigMap{}
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Namespace: "hossted-platform",
@@ -698,6 +698,11 @@ func (r *HosstedProjectReconciler) getAccessInfo(ctx context.Context) (AccessInf
 		}
 	} else {
 		return AccessInfo{}, fmt.Errorf("access-object.json key not found in ConfigMap")
+	}
+
+	if ns != pmc.Namespace {
+		log.Printf("Debug: Namespace mismatch. ns=%s, pmc.Namespace=%s", ns, pmc.Namespace)
+		return AccessInfo{}, nil
 	}
 
 	var user, password string
