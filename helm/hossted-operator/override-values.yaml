@@ -19,9 +19,6 @@ env:
 
 replicas: 1
 
-customValuesHolder:
-  grafana_product_name: argocd
-
 secret:
   HOSSTED_AUTH_TOKEN: "notoken"
 
