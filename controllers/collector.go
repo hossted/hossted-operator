@@ -48,7 +48,6 @@ type AppInfo struct {
 	HelmValueInfo   HelmValueInfo         `json:"helmvalue_info"`
 	SecurityInfo    []SecurityInfo        `json:"security_info"`
 	SecretInfo      []SecretInfo          `json:"secret_info"`
-	OptionsState    OptionsState          `json:"options_state,omitempty"`
 }
 
 type URLInfo struct {
@@ -334,18 +333,18 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 				HelmValueInfo:   helmvalueHolder,
 				SecurityInfo:    securityHolder,
 				SecretInfo:      secretHolder,
-				OptionsState:    osstate,
+				// OptionsState:    osstate,
 			}
 
 			collector := &Collector{
 				AppAPIInfo: AppAPIInfo{
-					AppName:     appInfo.HelmInfo.Name,
-					OrgID:       os.Getenv("HOSSTED_ORG_ID"),
-					ClusterUUID: instance.Status.ClusterUUID,
-					AppUUID:     appInfo.HelmInfo.AppUUID,
-					Type:        "k8s",
-					HosstedHelm: appInfo.HelmInfo.HosstedHelm,
-					//OptionsState: osstate,
+					AppName:      appInfo.HelmInfo.Name,
+					OrgID:        os.Getenv("HOSSTED_ORG_ID"),
+					ClusterUUID:  instance.Status.ClusterUUID,
+					AppUUID:      appInfo.HelmInfo.AppUUID,
+					Type:         "k8s",
+					HosstedHelm:  appInfo.HelmInfo.HosstedHelm,
+					OptionsState: osstate,
 				},
 				AppInfo: appInfo,
 			}
