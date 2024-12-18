@@ -293,34 +293,33 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 				return nil, nil, nil, err
 			}
 
-			var gpn string
-			gpn = helmInfo.Name
 			if os.Getenv("MARKET_PLACE") == "enabled" {
+				var gpn string
+				gpn = helmInfo.Name
 				gpn, err = r.getGrafanaProductName(ctx)
 				if err != nil {
 					log.Printf("error getting grafana product name %s", err)
 				}
-			}
 
-			if gpn != "" {
-				appNameWithoutPrefix := strings.TrimPrefix(helmInfo.Name, "hossted-")
-				log.Printf("Found grafana product name. Original HelmInfo.Name: %s, Trimmed Name: %s, Comparing with: %s", helmInfo.Name, appNameWithoutPrefix, gpn)
-				if appNameWithoutPrefix == gpn {
-					osstate = OptionsState{
-						Monitoring: MonitoringOptions{
-							Enabled:            true,
-							GrafanaProductName: gpn,
-						},
-					}
-				} else {
-					osstate = OptionsState{
-						Monitoring: MonitoringOptions{
-							Enabled: true,
-						},
+				if gpn != "" {
+					appNameWithoutPrefix := strings.TrimPrefix(helmInfo.Name, "hossted-")
+					log.Printf("Found grafana product name. Original HelmInfo.Name: %s, Trimmed Name: %s, Comparing with: %s", helmInfo.Name, appNameWithoutPrefix, gpn)
+					if appNameWithoutPrefix == gpn {
+						osstate = OptionsState{
+							Monitoring: MonitoringOptions{
+								Enabled:            true,
+								GrafanaProductName: gpn,
+							},
+						}
 					}
 				}
+			} else {
+				osstate = OptionsState{
+					Monitoring: MonitoringOptions{
+						Enabled: true,
+					},
+				}
 			}
-
 			// After collecting all HelmInfo structs for this iteration, assign to instance.Status.HelmStatus
 			appInfo := AppInfo{
 				HelmInfo:        helmInfo,
