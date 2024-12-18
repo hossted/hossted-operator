@@ -48,7 +48,6 @@ type AppInfo struct {
 	HelmValueInfo   HelmValueInfo         `json:"helmvalue_info"`
 	SecurityInfo    []SecurityInfo        `json:"security_info"`
 	SecretInfo      []SecretInfo          `json:"secret_info"`
-	OptionsState    OptionsState          `json:"options_state,omitempty"`
 }
 
 type URLInfo struct {
