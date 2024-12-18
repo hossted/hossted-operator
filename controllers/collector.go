@@ -312,12 +312,12 @@ func (r *HosstedProjectReconciler) collector(ctx context.Context, instance *hoss
 							GrafanaProductName: gpn,
 						},
 					}
-				} else {
-					osstate = OptionsState{
-						Monitoring: MonitoringOptions{
-							Enabled: true,
-						},
-					}
+				}
+			} else {
+				osstate = OptionsState{
+					Monitoring: MonitoringOptions{
+						Enabled: true,
+					},
 				}
 			}
 
