@@ -610,7 +610,6 @@ func (r *HosstedProjectReconciler) handleVulnReports(ctx context.Context, namesp
 // 	}
 
 // }
-
 func generateConfigMap(uuid, lokiURL, lokiUser, lokiPass, mimirURL, mimirUser, mimirPass string) string {
 	configMapTemplate := `
 discovery.kubernetes "metrics_integrations_kubernetes_nodes_cadvisor" {
@@ -656,7 +655,8 @@ prometheus.scrape "metrics_integrations_kubernetes_nodes_cadvisor" {
   targets         = discovery.relabel.metrics_integrations_kubernetes_nodes_cadvisor.output
   forward_to      = [prometheus.remote_write.metrics_integrations.receiver]
   job_name        = "kubernetes-nodes-cadvisor"
-  scrape_interval = "30s"
+  scrape_interval = "60s"
+  scrape_timeout  = "30s"
   scheme          = "https"
 
   authorization {
@@ -674,7 +674,8 @@ prometheus.scrape "metrics_integrations_integrations_kubernetes_kube_state_metri
   targets         = discovery.relabel.metrics_integrations_integrations_kubernetes_kube_state_metrics.output
   forward_to      = [prometheus.relabel.metrics_integrations_integrations_kubernetes_kube_state_metrics.receiver]
   job_name        = "integrations/kubernetes/kube-state-metrics"
-  scrape_interval = "30s"
+  scrape_interval = "60s"
+  scrape_timeout  = "30s"
 }
 
 prometheus.relabel "metrics_integrations_integrations_kubernetes_kube_state_metrics" {
@@ -682,13 +683,25 @@ prometheus.relabel "metrics_integrations_integrations_kubernetes_kube_state_metr
 
   rule {
     source_labels = ["__name__"]
-    regex         = ".*"
+    regex         = "kube_pod_container_status_.*|kube_deployment_.*|kube_node_.*|container_.*_seconds_total|container_memory_.*|container_cpu_.*"
     action        = "keep"
   }
 }
 
-prometheus.operator.servicemonitors "services" {
+prometheus.relabel "metrics_integrations_kubernetes_nodes_cadvisor" {
   forward_to = [prometheus.remote_write.metrics_integrations.receiver]
+  
+  rule {
+    source_labels = ["__name__"]
+    regex        = "container_(cpu|memory|network|fs)_.+"
+    action       = "keep"
+  }
+}
+
+prometheus.operator.servicemonitors "services" {
+  forward_to      = [prometheus.remote_write.metrics_integrations.receiver]
+  scrape_interval = "60s"
+  scrape_timeout  = "30s"
 }
 
 prometheus.remote_write "metrics_integrations" {
@@ -697,10 +710,17 @@ prometheus.remote_write "metrics_integrations" {
   }
 
   endpoint {
-    url  = "%s"
+    url = "%s"
     basic_auth {
       username = "%s"
       password = "%s"
+    }
+    queue_config {
+      max_samples_per_send = 1000
+      batch_send_deadline  = "5s"
+      min_shards          = 1
+      max_shards          = 3
+      capacity            = 5000
     }
   }
 }
@@ -759,6 +779,11 @@ loki.source.file "logs_default_integrations_kubernetes_pod_logs" {
   targets               = local.file_match.logs_default_integrations_kubernetes_pod_logs.targets
   forward_to            = [loki.process.logs_default_integrations_kubernetes_pod_logs.receiver]
   legacy_positions_file = "/tmp/positions.yaml"
+  
+  file_watch {
+    min_poll_frequency = "5s"
+    max_poll_frequency = "30s"
+  }
 }
 
 loki.write "logs_default" {
@@ -775,7 +800,7 @@ loki.write "logs_default" {
 }
 
 logging {
-  level = "debug"
+  level = "info"
 }`
 
 	return fmt.Sprintf(configMapTemplate,
