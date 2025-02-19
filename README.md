@@ -33,10 +33,106 @@ helm repo add hossted https://charts.hossted.com
 ```
 helm search repo hossted --versions
 ```
-- Install Operator
+
+## Upgrade Process
+
+### 1. Build Docker Image
+```bash
+docker build -t hossted/operator:${version}
 ```
-helm upgrade --install hossted-operator hossted/hossted-operator -n hossted-operator --set env.HOSSTED_API_URL="<>",env.HOSSTED_AUTH_TOKEN="<>",env.EMAIL_ID="<>"
- ```
+Replace `${version}` with your new version number (e.g., 0.7.6)
+
+### 2. Update Helm Chart
+In the helm chart directory, update `Chart.yaml`. Both `version` and `appVersion` need to match your new version:
+
+```yaml
+apiVersion: v2
+name: hossted-operator
+description: A Helm chart for Kubernetes
+type: application
+version: 0.7.6      # Update this version
+appVersion: 0.7.6   # Update this version to match
+```
+
+### 3. Package and Release
+1. Package the helm chart from within the helm directory:
+   ```bash
+   helm package .
+   ```
+
+2. Move the packaged artifact to helm-release directory
+
+3. Update the Helm repository index:
+   ```bash
+   helm repo update --index charts.hossted.com .
+   ```
+
+### 4. Git Workflow
+1. Push the updated artifacts to your branch
+2. Create a pull request and merge to main
+
+### 5. Adding Helm Repository
+```bash
+helm repo add charts.hossted.com <repository-url>
+```
+Note: Replace `<repository-url>` with the actual hossted charts repository URL.
+
+## Configuration Values
+
+⚠️ Important: The following values are typically managed by the hossted CLI. Only modify manually if you're doing a local upgrade and know the correct values for your environment.
+
+```yaml
+env:
+  HOSSTED_API_URL: "https://api.hossted.com/v1/instances"
+  RECONCILE_DURATION: "10s"
+  HOSSTED_ORG_ID: "123-123-123-123"
+  HOSSTED_TOKEN: ""
+  HOSSTED_USER_ID: ""
+  CONTEXT_NAME: ""
+  LOKI_PASSWORD: ""
+  LOKI_URL: ""
+  LOKI_USERNAME: ""
+  MIMIR_PASSWORD: ""
+  MIMIR_URL: ""
+  MIMIR_USERNAME: ""
+  CLOUD_PROVIDER: ""
+  PRODUCT_CODE: ""
+  AWS_REGION: ""
+  MARKET_PLACE: ""
+replicas: 1
+secret:
+  HOSSTED_AUTH_TOKEN: ""
+stop: false
+cve:
+  enable: true
+monitoring:
+  enable: true
+logging:
+  enable: false
+ingress:
+  enable: true
+serviceAccount:
+  create: false          # Set to true if you want to create a new ServiceAccount
+  name: "my-service-account"   # Specify the name of an existing ServiceAccount
+servicemonitors:
+  create: false
+nameOverride: hossted
+operator:
+  image:
+    repository: hossted/operator
+    tag: 0.7.0          # Make sure this matches your new version
+helm:
+  - releaseName: "kube-state-metrics"
+    namespace: "ksm"
+    values:  
+      - "selfMonitor.enabled=true"
+    repoName: "grafana"
+    chartName: "kube-state-metrics"
+    repoUrl: "https://prometheus-community.github.io/helm-charts"
+primaryCreds: {}
+```
+
+- pass the above values file whenever you do an upgrade using helm command. ```helm upgrade --install hossted-operator  hossted/hossted-operator -n hossted-operator -f values.yaml```
 
 #### Helm chart values
 
